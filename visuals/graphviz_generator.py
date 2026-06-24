@@ -16,7 +16,7 @@ os.environ["PATH"] += os.pathsep + r"C:\Program Files\Graphviz\bin"
 load_dotenv()
 _client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-_SYSTEM_PROMPT = """You are a smart school board visual designer.
+_SYSTEM_PROMPT = """You are a smart school board vaisual designer.
 Create a simple step-by-step process flowchart or classification tree for the given topic.
 
 STRICTLY return a JSON object with this format (no markdown fences, no formatting outside of JSON):

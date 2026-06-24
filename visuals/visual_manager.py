@@ -11,11 +11,7 @@ Priorities:
 
 Public API:
     get_smart_visual(topic, explanation, language) -> dict
-    render_visual(visual_result)  [call inside Streamlit]
 """
-
-import streamlit as st
-import streamlit.components.v1 as components
 
 from visuals.graphviz_generator import generate_graphviz_visual
 from visuals.infographic_generator import (
@@ -117,30 +113,23 @@ def get_smart_visual(topic: str, explanation: str, language: str = "Hinglish") -
 
 def render_visual(visual_result: dict):
     """
-    Renders the visual result in Streamlit.
+    Renders the visual result inside Streamlit.
     """
+    import streamlit as st
+    import streamlit.components.v1 as _c
+
     vtype   = visual_result.get("type")
     content = visual_result.get("content")
-    label   = visual_result.get("label", "🖼️ Visual Learning Aid")
 
     if vtype == "none" or not content:
-        st.info("🔍 No visual aid available for this topic.")
+        st.info("No visual aid available for this topic.")
         return
 
-    st.markdown(
-        f'<div class="card-title" style="margin-bottom:0.8rem;">{label}</div>',
-        unsafe_allow_html=True,
-    )
-
     if vtype in ("infographic", "comparison", "timeline", "graphviz"):
-        # HTML/CSS-based components
         height = 420
-        if vtype == "comparison":
-            height = 480
-        elif vtype == "timeline":
-            height = 500
-        
-        components.html(content, height=height, scrolling=True)
+        if vtype == "comparison": height = 480
+        elif vtype == "timeline": height = 500
+        st.iframe(content, height=height)
 
     elif vtype == "educational_image":
         img_url = content.get("image_url")
@@ -149,15 +138,22 @@ def render_visual(visual_result: dict):
         source  = content.get("source", "Wikimedia Commons")
 
         if img_url:
-            st.image(img_url, use_container_width=True)
-        st.markdown(
-            f"""<div style="margin-top:0.7rem; padding:0.8rem 1rem;
-                            background:rgba(0,200,255,0.05);
-                            border-left:3px solid #00c8ff;
-                            border-radius:8px;">
-                  <div style="font-size:1rem; font-weight:700; color:#80dfff; font-family:system-ui,sans-serif;">{title}</div>
-                  <div style="font-size:0.95rem; color:#a2c9dd; margin-top:0.3rem; line-height:1.6; font-family:system-ui,sans-serif;">{desc}</div>
-                  <div style="font-size:0.75rem; color:#4a7a94; margin-top:0.4rem; font-family:system-ui,sans-serif;">📌 Source: {source}</div>
-                </div>""",
-            unsafe_allow_html=True,
-        )
+            st.markdown(f"""
+            <div style="text-align:center; overflow:auto; padding:1.2rem;
+                        background:#FFFFFF; border:2px solid #DBEAFE; border-radius:12px;
+                        display:flex; justify-content:center; align-items:center;">
+                <img src="{img_url}" style="max-width:100%; height:auto; border-radius:8px;">
+            </div>
+            """, unsafe_allow_html=True)
+
+        if title or desc:
+            st.markdown(f"""
+            <div style="margin-top:0.6rem; padding:0.7rem 1rem;
+                        background:rgba(37,99,235,0.06); border-left:3px solid #2563EB;
+                        border-radius:8px;">
+                <div style="font-weight:700; color:#1E3A8A;">{title}</div>
+                <div style="font-size:0.9rem; color:#475569; margin-top:0.2rem; line-height:1.5;">{desc}</div>
+                <div style="font-size:0.75rem; color:#94A3B8; margin-top:0.3rem;">Source: {source}</div>
+            </div>
+            """, unsafe_allow_html=True)
+    

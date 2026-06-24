@@ -1,7 +1,7 @@
 """
 infographic_generator.py
 Generates educational infographic components (processes, comparison cards, timelines)
-as responsive HTML blocks styled for the smart board dark theme.
+as responsive HTML blocks styled for the light educational textbook theme.
 Uses JSON-first pattern: LLM outputs structured data, Python builds HTML.
 """
 
@@ -67,35 +67,35 @@ def generate_educational_infographic(topic: str, explanation: str, language: str
         if not steps:
             return None
 
-        # Build clean HTML
+        # Build clean Light Theme HTML
         steps_html = ""
         for s in steps:
             num = s.get("step_num", "")
             step_title = s.get("title", "")
             desc = s.get("desc", "")
             steps_html += f"""
-            <div style="display:flex; gap:1.2rem; align-items:flex-start; background:#0d2137; 
-                        border-radius:12px; padding:1.2rem; border:1px solid rgba(0,200,255,0.15); 
-                        margin-bottom:1rem; box-shadow:0 4px 10px rgba(0,0,0,0.15);">
-                <div style="background:#00c8ff; color:#0b1d33; font-weight:bold; font-size:1.15rem; 
+            <div style="display:flex; gap:1.2rem; align-items:flex-start; background:#F0F4FF; 
+                        border-radius:12px; padding:1.2rem; border:1px solid #BFDBFE; 
+                        margin-bottom:1rem; box-shadow:0 2px 6px rgba(37,99,235,0.06);">
+                <div style="background:#2563EB; color:#FFFFFF; font-weight:bold; font-size:1.15rem; 
                             border-radius:50%; width:36px; height:36px; display:flex; 
                             justify-content:center; align-items:center; flex-shrink:0; 
-                            box-shadow: 0 0 10px rgba(0,200,255,0.3);">
+                            box-shadow: 0 2px 5px rgba(37,99,235,0.2);">
                     {num}
                 </div>
                 <div style="flex:1;">
-                    <h4 style="color:#80dfff; margin:0 0 0.4rem 0; font-size:1.15rem; font-family:system-ui,sans-serif;">{step_title}</h4>
-                    <p style="color:#dff1fa; margin:0; font-size:1rem; line-height:1.6; font-family:system-ui,sans-serif;">{desc}</p>
+                    <h4 style="color:#1E3A8A; margin:0 0 0.4rem 0; font-size:1.15rem; font-family:system-ui,sans-serif; font-weight:700;">{step_title}</h4>
+                    <p style="color:#374151; margin:0; font-size:1rem; line-height:1.6; font-family:system-ui,sans-serif;">{desc}</p>
                 </div>
             </div>
             """
 
         wrapped = f"""
-        <div style="background:#0b1d33; padding:1.5rem; border-radius:16px; 
-                    border:1px solid rgba(0,200,255,0.25); font-family:system-ui, sans-serif;
-                    box-shadow: 0 8px 24px rgba(0,0,0,0.2);">
-            <h3 style="color:#00c8ff; margin:0 0 0.4rem 0; font-size:1.45rem;">💡 {title}</h3>
-            <p style="color:#a2c9dd; margin:0 0 1.5rem 0; font-size:1.05rem; line-height:1.5;">{intro}</p>
+        <div style="background:#FFFFFF; padding:1.5rem; border-radius:16px; 
+                    border:1px solid #DBEAFE; font-family:system-ui, sans-serif;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+            <h3 style="color:#1E3A8A; margin:0 0 0.4rem 0; font-size:1.45rem; font-weight:800;">💡 {title}</h3>
+            <p style="color:#4B5563; margin:0 0 1.5rem 0; font-size:1.05rem; line-height:1.5;">{intro}</p>
             <div>
                 {steps_html}
             </div>
@@ -166,7 +166,7 @@ def generate_comparison_cards(topic: str, explanation: str, language: str = "Hin
         if len(cards) < 2:
             return None
 
-        # Build two side-by-side cards
+        # Build two side-by-side Light Theme cards
         cards_html = ""
         for card in cards:
             c_title = card.get("title", "")
@@ -174,15 +174,15 @@ def generate_comparison_cards(topic: str, explanation: str, language: str = "Hin
             points_list = "".join([f'<li style="margin-bottom:0.7rem;">{p}</li>' for p in points])
             
             cards_html += f"""
-            <div style="flex:1; min-width:280px; background:#0d2137; border-radius:12px; 
-                        padding:1.3rem; border:1px solid rgba(0,200,255,0.15); 
-                        display:flex; flex-direction:column; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
-                <h4 style="color:#00c8ff; font-size:1.3rem; margin:0 0 1.2rem 0; 
-                           padding-bottom:0.6rem; border-bottom:2px solid rgba(0,200,255,0.25); 
-                           text-align:center; font-family:system-ui,sans-serif;">
+            <div style="flex:1; min-width:280px; background:#F0F4FF; border-radius:12px; 
+                        padding:1.3rem; border:1px solid #BFDBFE; 
+                        display:flex; flex-direction:column; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                <h4 style="color:#1E3A8A; font-size:1.3rem; margin:0 0 1.2rem 0; 
+                           padding-bottom:0.6rem; border-bottom:2px solid #BFDBFE; 
+                           text-align:center; font-family:system-ui,sans-serif; font-weight:700;">
                     {c_title}
                 </h4>
-                <ul style="padding-left:1.2rem; margin:0; color:#dff1fa; font-size:1.05rem; 
+                <ul style="padding-left:1.2rem; margin:0; color:#374151; font-size:1.05rem; 
                            line-height:1.65; font-family:system-ui,sans-serif;">
                     {points_list}
                 </ul>
@@ -190,10 +190,10 @@ def generate_comparison_cards(topic: str, explanation: str, language: str = "Hin
             """
 
         wrapped = f"""
-        <div style="background:#0b1d33; padding:1.5rem; border-radius:16px; 
-                    border:1px solid rgba(0,200,255,0.25); font-family:system-ui, sans-serif;
-                    box-shadow: 0 8px 24px rgba(0,0,0,0.2);">
-            <h3 style="color:#00c8ff; margin:0 0 1.5rem 0; font-size:1.45rem; text-align:center;">⚖️ {title}</h3>
+        <div style="background:#FFFFFF; padding:1.5rem; border-radius:16px; 
+                    border:1px solid #DBEAFE; font-family:system-ui, sans-serif;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+            <h3 style="color:#1E3A8A; margin:0 0 1.5rem 0; font-size:1.45rem; text-align:center; font-weight:800;">⚖️ {title}</h3>
             <div style="display:flex; gap:1.5rem; flex-wrap:wrap; justify-content:center;">
                 {cards_html}
             </div>
@@ -259,7 +259,7 @@ def generate_timeline_cards(topic: str, explanation: str, language: str = "Hingl
         if not events:
             return None
 
-        # Build vertical timeline
+        # Build vertical timeline Light Theme
         events_html = ""
         for i, ev in enumerate(events):
             time = ev.get("time", "")
@@ -268,15 +268,15 @@ def generate_timeline_cards(topic: str, explanation: str, language: str = "Hingl
             <div style="position:relative; margin-bottom:1.5rem;">
                 <!-- Timeline Dot -->
                 <div style="position:absolute; left:-29px; top:6px; width:12px; height:12px; 
-                            border-radius:50%; background:#00c8ff; border:2px solid #0b1d33;
-                            box-shadow: 0 0 8px #00c8ff;"></div>
-                <div style="background:#0d2137; border-radius:12px; padding:1.2rem; 
-                            border:1px solid rgba(0,200,255,0.15); box-shadow:0 4px 10px rgba(0,0,0,0.15);">
-                    <span style="display:inline-block; font-weight:bold; color:#00c8ff; 
+                            border-radius:50%; background:#2563EB; border:2px solid #FFFFFF;
+                            box-shadow: 0 0 6px rgba(37,99,235,0.4);"></div>
+                <div style="background:#F0F4FF; border-radius:12px; padding:1.2rem; 
+                            border:1px solid #BFDBFE; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                    <span style="display:inline-block; font-weight:bold; color:#2563EB; 
                                  font-size:1.15rem; margin-bottom:0.4rem; font-family:system-ui,sans-serif;">
                         📅 {time}
                     </span>
-                    <p style="color:#dff1fa; margin:0; font-size:1.05rem; line-height:1.55; font-family:system-ui,sans-serif;">
+                    <p style="color:#374151; margin:0; font-size:1.05rem; line-height:1.55; font-family:system-ui,sans-serif;">
                         {desc}
                     </p>
                 </div>
@@ -284,11 +284,11 @@ def generate_timeline_cards(topic: str, explanation: str, language: str = "Hingl
             """
 
         wrapped = f"""
-        <div style="background:#0b1d33; padding:1.5rem; border-radius:16px; 
-                    border:1px solid rgba(0,200,255,0.25); font-family:system-ui, sans-serif;
-                    box-shadow: 0 8px 24px rgba(0,0,0,0.2);">
-            <h3 style="color:#00c8ff; margin:0 0 1.8rem 0; font-size:1.45rem;">⏳ {title}</h3>
-            <div style="position:relative; padding-left:1.5rem; border-left:3px solid rgba(0,200,255,0.25); 
+        <div style="background:#FFFFFF; padding:1.5rem; border-radius:16px; 
+                    border:1px solid #DBEAFE; font-family:system-ui, sans-serif;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+            <h3 style="color:#1E3A8A; margin:0 0 1.8rem 0; font-size:1.45rem; font-weight:800;">⏳ {title}</h3>
+            <div style="position:relative; padding-left:1.5rem; border-left:3px solid #BFDBFE; 
                         margin-left:1rem; display:flex; flex-direction:column;">
                 {events_html}
             </div>
