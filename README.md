@@ -2,7 +2,7 @@
   <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit">
   <img src="https://img.shields.io/badge/Groq-000000?style=for-the-badge&logo=groq&logoColor=white" alt="Groq">
-  <img src="https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge" alt="License">
+
 </div>
 
 <br />
@@ -207,6 +207,7 @@ Based on the current architecture, here are the planned, realistic improvements 
 *   **Enhanced Multi-Lingual TTS:** Incorporate more regional Indian languages and dialects into the Voice Assistant pipeline.
 
 ---
+
 
 
 ## 🤝 Contributing
