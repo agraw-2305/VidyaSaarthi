@@ -2,67 +2,14 @@
 infographic_generator.py
 Generates educational infographic components (processes, comparison cards, timelines)
 as responsive HTML blocks styled for the light educational textbook theme.
-Uses JSON-first pattern: LLM outputs structured data, Python builds HTML.
+Uses JSON-first pattern: LLM outputs structured data via the main EXPLANATION payload, Python builds HTML.
 """
 
-import json
-from groq import Groq
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-
-# ──────────────────────────────────────────────────────────────────────────────
-# 1. EDUCATIONAL INFOGRAPHICS (Processes / Cycles)
-# ──────────────────────────────────────────────────────────────────────────────
-
-_INFOGRAPHIC_SYSTEM_PROMPT = """You are an expert school textbook visual designer.
-Create a step-by-step process or cycle breakdown for the given topic in JSON format.
-
-STRICT JSON FORMAT:
-{
-  "title": "Water Cycle Process (Jal Chakra)",
-  "intro": "How water moves from Earth to the sky and back.",
-  "steps": [
-    {
-      "step_num": 1,
-      "title": "Evaporation (Vashpikaran)",
-      "desc": "The Sun heats up water in lakes, turning it into vapor."
-    },
-    {
-      "step_num": 2,
-      "title": "Condensation (Sanganak)",
-      "desc": "Water vapor cools down high in the air to form clouds."
-    }
-  ]
-}
-
-RULES:
-1. ONLY return a valid JSON object. No conversational text or markdown code blocks.
-2. Limit to 3-6 clear, logical steps. Keep explanations simple for Class 5-12.
-3. Keep descriptions concise (15-25 words each).
-4. Match language requested (Hinglish, Hindi, English).
-"""
-
-def generate_educational_infographic(topic: str, explanation: str, language: str = "Hinglish") -> str | None:
+def generate_educational_infographic(visual_data: dict) -> str | None:
     try:
-        user_msg = f"Language: {language}\nTopic: {topic}\nContext:\n{explanation[:500]}"
-        resp = _client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": _INFOGRAPHIC_SYSTEM_PROMPT},
-                {"role": "user",   "content": user_msg},
-            ],
-            max_tokens=800,
-            temperature=0.3,
-        )
-        data = json.loads(resp.choices[0].message.content.strip())
-        
-        title = data.get("title", topic)
-        intro = data.get("intro", "")
-        steps = data.get("steps", [])
+        title = visual_data.get("title", "Process Infographic")
+        intro = visual_data.get("intro", "")
+        steps = visual_data.get("steps", [])
 
         if not steps:
             return None
@@ -70,9 +17,10 @@ def generate_educational_infographic(topic: str, explanation: str, language: str
         # Build clean Light Theme HTML
         steps_html = ""
         for s in steps:
-            num = s.get("step_num", "")
-            step_title = s.get("title", "")
-            desc = s.get("desc", "")
+            import html
+            num = html.escape(str(s.get("step_num", "")))
+            step_title = html.escape(s.get("title", ""))
+            desc = html.escape(s.get("desc", ""))
             steps_html += f"""
             <div style="display:flex; gap:1.2rem; align-items:flex-start; background:#F0F4FF; 
                         border-radius:12px; padding:1.2rem; border:1px solid #BFDBFE; 
@@ -107,71 +55,27 @@ def generate_educational_infographic(topic: str, explanation: str, language: str
         return None
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 2. COMPARISON CARDS
-# ──────────────────────────────────────────────────────────────────────────────
-
-_COMPARISON_SYSTEM_PROMPT = """You are an expert school textbook designer.
-Compare two topics/concepts side-by-side in JSON format.
-
-STRICT JSON FORMAT:
-{
-  "title": "Herbivores vs Carnivores",
-  "cards": [
-    {
-      "title": "Herbivores (Shakahari)",
-      "points": [
-        "Eat plants and fruits.",
-        "Flat, broad teeth for grinding grass.",
-        "Examples: Cow, Deer, Goat."
-      ]
-    },
-    {
-      "title": "Carnivores (Mansahari)",
-      "points": [
-        "Eat other animals and meat.",
-        "Sharp, pointed teeth to tear flesh.",
-        "Examples: Lion, Tiger, Leopard."
-      ]
-    }
-  ]
-}
-
-RULES:
-1. ONLY return a valid JSON object. No markdown, no fences.
-2. Produce exactly 2 comparative items in the "cards" list.
-3. Limit to 3-5 distinct bullet points per card.
-4. Keep comparison points aligned and clear for school students.
-5. Match language requested (Hinglish, Hindi, English).
-"""
-
-def generate_comparison_cards(topic: str, explanation: str, language: str = "Hinglish") -> str | None:
+def generate_comparison_cards(visual_data: dict) -> str | None:
     try:
-        user_msg = f"Language: {language}\nTopic: {topic}\nContext:\n{explanation[:500]}"
-        resp = _client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": _COMPARISON_SYSTEM_PROMPT},
-                {"role": "user",   "content": user_msg},
-            ],
-            max_tokens=800,
-            temperature=0.3,
-        )
-        data = json.loads(resp.choices[0].message.content.strip())
-        
-        title = data.get("title", topic)
-        cards = data.get("cards", [])
+        title = visual_data.get("title", "Comparison")
+        cards = visual_data.get("cards", [])
 
         if len(cards) < 2:
             return None
 
+        import html
         # Build two side-by-side Light Theme cards
         cards_html = ""
         for card in cards:
-            c_title = card.get("title", "")
-            points = card.get("points", [])
-            points_list = "".join([f'<li style="margin-bottom:0.7rem;">{p}</li>' for p in points])
+            c_title = html.escape(card.get("title", ""))
+            desc = card.get("desc", "")
+            
+            # If desc is a string, make it a bullet point. If it's a list, make multiple bullet points.
+            points_list = ""
+            if isinstance(desc, list):
+                points_list = "".join([f'<li style="margin-bottom:0.7rem;">{html.escape(p)}</li>' for p in desc])
+            else:
+                points_list = f'<li style="margin-bottom:0.7rem;">{html.escape(desc)}</li>'
             
             cards_html += f"""
             <div style="flex:1; min-width:280px; background:#F0F4FF; border-radius:12px; 
@@ -205,65 +109,20 @@ def generate_comparison_cards(topic: str, explanation: str, language: str = "Hin
         return None
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 3. TIMELINE CARDS
-# ──────────────────────────────────────────────────────────────────────────────
-
-_TIMELINE_SYSTEM_PROMPT = """You are an expert history textbook illustrator.
-Create a historical or process timeline in JSON format.
-
-STRICT JSON FORMAT:
-{
-  "title": "Life of Mahatma Gandhi",
-  "events": [
-    {
-      "time": "1869",
-      "event": "Born in Porbandar, Gujarat."
-    },
-    {
-      "time": "1915",
-      "event": "Returned to India from South Africa to join the freedom movement."
-    },
-    {
-      "time": "1947",
-      "event": "India achieved Independence from British rule."
-    }
-  ]
-}
-
-RULES:
-1. ONLY return a valid JSON object. No markdown, no fences.
-2. Limit to 3-6 significant chronological events.
-3. Keep event summaries simple and educational (10-20 words).
-4. Match language requested (Hinglish, Hindi, English).
-"""
-
-def generate_timeline_cards(topic: str, explanation: str, language: str = "Hinglish") -> str | None:
+def generate_timeline_cards(visual_data: dict) -> str | None:
     try:
-        user_msg = f"Language: {language}\nTopic: {topic}\nContext:\n{explanation[:500]}"
-        resp = _client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": _TIMELINE_SYSTEM_PROMPT},
-                {"role": "user",   "content": user_msg},
-            ],
-            max_tokens=800,
-            temperature=0.3,
-        )
-        data = json.loads(resp.choices[0].message.content.strip())
-        
-        title = data.get("title", topic)
-        events = data.get("events", [])
+        title = visual_data.get("title", "Timeline")
+        events = visual_data.get("cards", []) # Use 'cards' from the visual payload to stay consistent
 
         if not events:
             return None
 
         # Build vertical timeline Light Theme
+        import html
         events_html = ""
-        for i, ev in enumerate(events):
-            time = ev.get("time", "")
-            desc = ev.get("event", "")
+        for ev in events:
+            time = html.escape(ev.get("title", "")) # using title as the time/event name
+            desc = html.escape(ev.get("desc", ""))
             events_html += f"""
             <div style="position:relative; margin-bottom:1.5rem;">
                 <!-- Timeline Dot -->
@@ -298,3 +157,42 @@ def generate_timeline_cards(topic: str, explanation: str, language: str = "Hingl
     except Exception as e:
         print("[infographic_generator] Timeline error:", e)
         return None
+
+def generate_table_visual(visual_data: dict) -> str | None:
+    try:
+        title = visual_data.get("title", "Table Summary")
+        headers = visual_data.get("headers", [])
+        rows = visual_data.get("rows", [])
+
+        if not headers or not rows:
+            return None
+
+        import html
+        headers_html = "".join([f'<th style="background:#2563EB; color:#FFFFFF; padding:10px 12px; font-weight:700; text-align:left; border:1px solid #BFDBFE; font-family:system-ui,sans-serif;">{html.escape(h)}</th>' for h in headers])
+
+        rows_html = ""
+        for i, row in enumerate(rows):
+            bg = "#F8FAFC" if i % 2 == 1 else "#FFFFFF"
+            cells_html = "".join([f'<td style="padding:10px 12px; border:1px solid #E2E8F0; color:#374151; font-size:0.95rem; font-family:system-ui,sans-serif;">{html.escape(str(cell))}</td>' for cell in row])
+            rows_html += f'<tr style="background:{bg};">{cells_html}</tr>'
+
+        wrapped = f"""
+        <div style="background:#FFFFFF; padding:1.5rem; border-radius:16px; 
+                    border:1px solid #DBEAFE; font-family:system-ui, sans-serif;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow-x:auto;">
+            <h3 style="color:#1E3A8A; margin:0 0 1rem 0; font-size:1.45rem; font-weight:800;">📊 {title}</h3>
+            <table style="width:100%; border-collapse:collapse; border:1px solid #DBEAFE; border-radius:8px; overflow:hidden;">
+                <thead>
+                    <tr>{headers_html}</tr>
+                </thead>
+                <tbody>
+                    {rows_html}
+                </tbody>
+            </table>
+        </div>
+        """
+        return wrapped
+    except Exception as e:
+        print("[infographic_generator] Table error:", e)
+        return None
+

@@ -1,248 +1,411 @@
+"""
+ShikshaAI — llm.py
+Complete LLM engine: intent classification, structured AI teaching,
+NCERT-aligned responses, enriched JSON schema, retry/validation, configurable model.
+"""
+
 from groq import Groq
 import os
 import json
+import re
+import logging
 from dotenv import load_dotenv
 
-load_dotenv()
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+load_dotenv(override=True)
 
-SYSTEM_PROMPTS = {
-    "Hinglish": """You are an AI teaching assistant for Indian school classrooms (Class 5-10).
-Depending on the query, determine if you need to explain a concept/topic (type "explanation") or run a quiz (type "quiz").
+# ── Configurable Model (Item #25, #26) ────────────────────────────────────────
+_MODEL      = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+_TEMPERATURE = float(os.getenv("GROQ_TEMPERATURE", "0.3"))
+_MAX_TOKENS  = int(os.getenv("GROQ_MAX_TOKENS", "4096"))
 
-You MUST return a JSON object. No conversational prefix/suffix outside the JSON.
+# Load multiple API keys for rotation
+_keys_str = os.getenv("GROQ_API_KEYS", "")
+API_KEYS = [k.strip() for k in _keys_str.split(",") if k.strip()]
+if not API_KEYS:
+    # fallback to single key
+    single_key = os.getenv("GROQ_API_KEY", "").strip()
+    API_KEYS = [single_key] if single_key else []
 
-CRITICAL QUALITY RULES (DO NOT VIOLATE):
-1. SCIENTIFIC ACCURACY: All concepts, steps, and explanations must be 100% scientifically accurate, logical, and age-appropriate (Class 5-10).
-2. LOGICAL REAL-WORLD ANALOGIES: Any analogy used must compare the topic to a widely understood, logical real-world object or process (e.g. leaf is the kitchen where food is made, heart is like a home water pump/motor lifting water to a rooftop tank, nerves are like postmen delivering messages). NEVER invent awkward or silly analogies.
-3. NATURAL HINGLISH: Use a natural, fluent mix of Hindi and English in Roman script. Write scientific names and technical terms in standard English (e.g., 'photosynthesis', 'oxygen', 'carbon dioxide', 'energy', 'ventricle'), and structural parts in normal conversational Hindi. Avoid literal machine-translated terms that sound unnatural.
-4. AUDIO SCRIPT FORMAT: The "audio_script" field must be 100% plain text. Absolutely NO markdown, NO asterisks (*), NO emojis, NO bullet points, and NO brackets. It should sound like a warm, engaging classroom teacher reading aloud.
+# Default client
+client = Groq(api_key=API_KEYS[0]) if API_KEYS else None
 
-JSON Structure:
-1. For type "explanation":
-{
-  "type": "explanation",
-  "topic_title": "Topic name (e.g., Photosynthesis - Paudhe Ka Rasoi Ghar)",
-  "notes_intro": "A warm, simple, 2-3 sentence introduction to the concept in natural Hinglish.",
-  "notes_key_concepts": [
-     "Key concept/definition 1: standard English term with easy explanation in Hinglish",
-     "Key concept/definition 2: standard English term with easy explanation in Hinglish"
-  ],
-  "notes_important_points": [
-     "Important point 1 in conversational Hinglish",
-     "Important point 2 in conversational Hinglish",
-     "Important point 3 in conversational Hinglish"
-  ],
-  "notes_examples": [
-     "Classroom-friendly school-appropriate example 1 (e.g. comparing leaf making food with mom cooking in kitchen)",
-     "Classroom-friendly school-appropriate example 2"
-  ],
-  "notes_summary": "A simple concluding summary (2-3 sentences) of the topic in Hinglish.",
-  "analogy_title": "Title of the real-life analogy used (e.g., Ghar Ki Water Pump, ya Paudhon Ka Rasoi Ghar)",
-  "analogy_text": "An analogy comparing the topic to everyday life in conversational Hinglish. Crucial: The analogy must make logical sense and be scientifically accurate. Avoid awkward or silly terms.",
-  "audio_script": "A clean spoken-only text in natural conversational Hinglish (no emojis, no markdown, no symbols, no bullet points) designed to be read aloud by Text-to-Speech. Keep it warm and engaging, acting like a friendly class teacher."
-}
+logger = logging.getLogger(__name__)
 
-2. For type "quiz":
-{
-  "type": "quiz",
-  "quiz_title": "Title of the quiz (e.g., Photosynthesis Ka Mazedaar Quiz)",
-  "intro_text": "Friendly introduction in natural Hinglish to be read aloud by TTS (e.g., 'Chalo bacho, ek quiz khelte hain! Main aapse sawaal poochunga aur aapko screen par dekh kar answer dena hai. Chalo shuru karte hain.')",
-  "questions": [
-    {
-      "question_number": 1,
-      "question_text": "Question text in friendly Hinglish, tailored to the requested difficulty level.",
-      "options": {
-        "A": "Option A content",
-        "B": "Option B content",
-        "C": "Option C content",
-        "D": "Option D content"
-      },
-      "correct_option": "A",
-      "explanation": "A 1-sentence friendly explanation in Hinglish of why this option is correct.",
-      "audio_script": "A clean spoken text for TTS to read out this question and its options. E.g., 'Question 1: ... Option A, ... Option B, ... Option C, ... Ya option D, ... Sahi option chuniye.'"
-    }
-  ]
-}
+# ══════════════════════════════════════════════════════════════════════════════
+# INTENT CLASSIFICATION (Item #2, #7)
+# ══════════════════════════════════════════════════════════════════════════════
+INTENT_TYPES = [
+    "explanation", "quiz", "doubt", "revision", "compare",
+    "diagram", "homework", "summary", "definition", "formula", "example"
+]
 
-Language Rule: ALWAYS write all texts in conversational Hinglish (natural mix of Hindi and English in Roman script). Keep it very warm and engaging.""",
+# Extended quiz detection keywords (Item #7)
+QUIZ_HINT_KEYWORDS = [
+    "quiz", "test", "practice", "assessment", "revision", "worksheet",
+    "mcq", "rapid fire", "challenge", "true false", "fill blanks",
+    "ask me questions", "check my knowledge", "mock test", "question paper",
+]
 
-    "Hindi": """You are an AI teaching assistant for Indian school classrooms (Class 5-10).
-Depending on the query, determine if you need to explain a concept/topic (type "explanation") or run a quiz (type "quiz").
+from prompt_builder import build_system_prompt
 
-You MUST return a JSON object. No conversational prefix/suffix outside the JSON.
 
-महत्वपूर्ण गुणवत्ता नियम (उल्लंघन न करें):
-1. वैज्ञानिक सटीकता: सभी वैज्ञानिक अवधारणाएं, चरण और स्पष्टीकरण 100% सही, तार्किक और कक्षा 5-10 के बच्चों के लिए उपयुक्त होने चाहिए।
-2. तार्किक और वास्तविक जीवन के उदाहरण (अनालॉजी): किसी भी उदाहरण या अनालॉजी को बहुत तार्किक और स्वाभाविक होना चाहिए (जैसे- हृदय एक पानी उठाने वाले पंप/मोटर की तरह है जो छत की टंकी तक पानी पहुँचाता है, पत्तियां पौधे की रसोई हैं)।
-3. स्वाभाविक हिंदी: देवनागरी लिपि में साफ, शुद्ध और सम्मानजनक हिंदी का उपयोग करें। मशीन ट्रांसलेशन वाली भाषा से बचें जो पढ़ने में अजीब लगे।
-4. ऑडियो स्क्रिप्ट का प्रारूप: "audio_script" फ़ील्ड केवल सादा पाठ (Plain Text) होना चाहिए। इसमें कोई मार्कडाउन (*, #), इमोजी, ब्रैकेट या बुलेट पॉइंट नहीं होना चाहिए ताकि TTS इसे आसानी से पढ़ सके।
+# ══════════════════════════════════════════════════════════════════════════════
+# PROMPT BUILDER
+# ══════════════════════════════════════════════════════════════════════════════
+def _build_system_prompt(text_language: str, audio_language: str, class_level: int = 8, intent: str = "explanation", audio_requested: bool = True) -> str:
+    return build_system_prompt(text_language, audio_language, class_level, intent, audio_requested)
 
-JSON Structure:
-1. For type "explanation":
-{
-  "type": "explanation",
-  "topic_title": "Topic name (e.g., प्रकाश संश्लेषण - पौधों की रसोई)",
-  "notes_intro": "हिंदी में अवधारणा का 2-3 वाक्यों में सरल परिचय।",
-  "notes_key_concepts": [
-     "महत्वपूर्ण परिभाषा 1: हिंदी में सरल शब्दों में व्याख्या",
-     "महत्वपूर्ण परिभाषा 2: हिंदी में सरल शब्दों में व्याख्या"
-  ],
-  "notes_important_points": [
-     "महत्वपूर्ण बिंदु 1",
-     "महत्वपूर्ण बिंदु 2",
-     "महत्वपूर्ण बिंदु 3"
-  ],
-  "notes_examples": [
-     "कक्षा के अनुकूल विद्यालय स्तर का उदाहरण 1",
-     "कक्षा के अनुकूल विद्यालय स्तर का उदाहरण 2"
-  ],
-  "notes_summary": "हिंदी में विषय का एक सरल निष्कर्ष सारांश (2-3 वाक्य)।",
-  "analogy_title": "तार्किक उदाहरण का शीर्षक",
-  "analogy_text": "विषय की तुलना वास्तविक जीवन के किसी तार्किक उदाहरण से करते हुए हिंदी में वर्णन।",
-  "audio_script": "TTS द्वारा पढ़े जाने के लिए बिना किसी मार्कडाउन, इमोजी या बुलेट पॉइंट के शुद्ध और सरल हिंदी पाठ।"
-}
 
-2. For type "quiz":
-{
-  "type": "quiz",
-  "quiz_title": "क्विज़ का शीर्षक (e.g., प्रकाश संश्लेषण का मज़ेदार क्विज़)",
-  "intro_text": "बच्चों के लिए क्विज़ का छोटा परिचय जो TTS द्वारा पढ़ा जा सके।",
-  "questions": [
-    {
-      "question_number": 1,
-      "question_text": "अनुरोधित कठिनाई स्तर के अनुसार हिंदी में सवाल।",
-      "options": {
-        "A": "विकल्प क content",
-        "B": "विकल्प ख content",
-        "C": "विकल्प ग content",
-        "D": "विकल्प घ content"
-      },
-      "correct_option": "A",
-      "explanation": "एक वाक्य में व्याख्या कि यह विकल्प क्यों सही है।",
-      "audio_script": "इस सवाल और इसके विकल्पों को जोर से पढ़ने के लिए साफ हिंदी पाठ।"
-    }
-  ]
-}
-
-Language Rule: ALWAYS reply ONLY in Hindi using Devanagari script (हिंदी). Keep it very warm and engaging.""",
-
-    "English": """You are an AI teaching assistant for Indian school classrooms (Class 5-10).
-Depending on the query, determine if you need to explain a concept/topic (type "explanation") or run a quiz (type "quiz").
-
-You MUST return a JSON object. No conversational prefix/suffix outside the JSON.
-
-CRITICAL QUALITY RULES (DO NOT VIOLATE):
-1. SCIENTIFIC ACCURACY: All explanations, facts, and steps must be 100% scientifically accurate, logical, and age-appropriate (Class 5-10).
-2. LOGICAL REAL-WORLD ANALOGIES: Any analogy used must compare the topic to a standard, logical real-world object or process (e.g. leaf is the kitchen where food is prepared, heart is like an electric water pump lifting water to a rooftop tank, nerves are like postmen delivering mail). Never invent awkward or silly analogies.
-3. STANDARD CLASSROOM ENGLISH: Use grammatically correct, simple, and clean English suitable for school students. Avoid complex terms.
-4. AUDIO SCRIPT FORMAT: The "audio_script" field must be 100% plain text. Absolutely NO markdown (*, #), NO emojis, NO brackets, and NO bullet points. It must sound like a warm, supportive teacher speaking.
-
-JSON Structure:
-1. For type "explanation":
-{
-  "type": "explanation",
-  "topic_title": "Topic name (e.g., Photosynthesis - Plant's Kitchen)",
-  "notes_intro": "A simple 2-3 sentence introduction to the concept.",
-  "notes_key_concepts": [
-     "Key concept 1: simple definition/explanation",
-     "Key concept 2: simple definition/explanation"
-  ],
-  "notes_important_points": [
-     "Important fact 1 in simple terms",
-     "Important fact 2 in simple terms",
-     "Important fact 3 in simple terms"
-  ],
-  "notes_examples": [
-     "School-appropriate classroom example 1",
-     "School-appropriate classroom example 2"
-  ],
-  "notes_summary": "A simple concluding summary (2-3 sentences) of the topic.",
-  "analogy_title": "Title of the real-life analogy used (e.g., House Water Pump)",
-  "analogy_text": "An analogy comparing the topic to everyday life. Crucial: The analogy must make logical sense and be scientifically accurate.",
-  "audio_script": "A clean spoken-only text in natural English (no emojis, no markdown, no symbols, no bullet points) designed to be read aloud by Text-to-Speech."
-}
-
-2. For type "quiz":
-{
-  "type": "quiz",
-  "quiz_title": "Quiz Title (e.g., Photosynthesis Quiz)",
-  "intro_text": "Friendly introduction to read aloud for TTS.",
-  "questions": [
-    {
-      "question_number": 1,
-      "question_text": "Question text in simple English, matching the requested difficulty.",
-      "options": {
-        "A": "Option A",
-        "B": "Option B",
-        "C": "Option C",
-        "D": "Option D"
-      },
-      "correct_option": "A",
-      "explanation": "A 1-sentence friendly explanation of why this option is correct.",
-      "audio_script": "A clean spoken text for TTS to read out this question and its options."
-    }
-  ]
-}
-
-Language Rule: ALWAYS reply ONLY in English. Keep it very warm and engaging."""
-}
-
-def generate_response(query: str, language: str = "Hinglish", num_questions: int = 5, difficulty: str = "Medium", question_type: str = "MCQ") -> str:
-    prompt = SYSTEM_PROMPTS.get(language, SYSTEM_PROMPTS["Hinglish"])
-    user_content = query
+# ══════════════════════════════════════════════════════════════════════════════
+# INTENT ROUTER (Item #20, #4)
+# ══════════════════════════════════════════════════════════════════════════════
+def route_intent(query: str, is_quiz_forced: bool = False) -> str:
+    """Uses Python heuristic keyword matching to classify intent. Falls back to LLM if ambiguous."""
+    if is_quiz_forced:
+        return "quiz"
+        
+    q = query.lower()
     
-    # If the user is asking for a quiz or if the query contains "quiz"
-    is_quiz_query = "quiz" in query.lower() or "test" in query.lower()
+    # Quiz keywords
+    if re.search(r'\b(quiz|test|practice|assessment|mcq|rapid fire|challenge|true false|fill blanks|question paper|mock test)\b', q):
+        return "quiz"
+    # Compare keywords
+    if re.search(r'\b(compare|difference|vs|versus|distinguish)\b', q):
+        return "compare"
+    # Homework keywords
+    if re.search(r'\b(homework|solve|calculate|find the value|equation)\b', q):
+        return "homework"
+    # Revision keywords
+    if re.search(r'\b(revision|revise|summary|summarize|short notes)\b', q):
+        return "revision"
+    # Definition keywords
+    if re.search(r'\b(define|definition|what is|what are|meaning of)\b', q):
+        if not re.search(r'\b(how|why|process)\b', q):
+            return "definition"
+            
+    # Hybrid Fallback: Use lightweight LLM for ambiguous queries
+    router_prompt = """Classify the user's educational query into exactly ONE of these intents:
+"explanation", "quiz", "definition", "compare", "revision", "homework".
+If unsure, default to "explanation".
+Respond STRICTLY with JSON: {"intent": "explanation"}"""
+    try:
+        resp = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": router_prompt},
+                {"role": "user", "content": query}
+            ],
+            max_tokens=20,
+            temperature=0.1
+        )
+        data = json.loads(resp.choices[0].message.content.strip())
+        intent = data.get("intent", "explanation").lower()
+        if intent not in ["explanation", "quiz", "definition", "compare", "revision", "homework"]:
+            return "explanation"
+        return intent
+    except Exception as e:
+        logger.warning(f"Hybrid router fallback failed: {e}. Defaulting to explanation.")
+        return "explanation"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# GENERATE RESPONSE (Items #25, #26, #27)
+# ══════════════════════════════════════════════════════════════════════════════
+def generate_response(
+    query: str,
+    text_language: str = "English",
+    audio_language: str = "English",
+    num_questions: int = 5,
+    difficulty: str = "Medium",
+    question_type: str = "MCQ",
+    class_level: int = 8,
+    conversation_history: list = None,
+    override_model: str = None,
+    override_client = None,
+    override_max_tokens: int = None,
+    audio_requested: bool = True,
+) -> str:
+    """
+    Generate an LLM response with full context.
+    """
+    # Call the Python router to determine intent
+    is_quiz_forced = (num_questions != 5)
+    intent = route_intent(query, is_quiz_forced)
     
-    if is_quiz_query or num_questions != 5:
-        # Build strict specifications for the quiz
+    system_prompt = _build_system_prompt(text_language, audio_language, class_level, intent, audio_requested)
+
+    # Build messages array
+    messages = [{"role": "system", "content": system_prompt}]
+
+    # Add conversation context — last 3 turns
+    if conversation_history:
+        for turn in conversation_history[-3:]:
+            # Prevent massive token bloat from previous JSON responses
+            if turn["role"] == "assistant" and len(turn.get("content", "")) > 500:
+                messages.append({"role": "assistant", "content": turn["content"][:300] + "... [Detailed JSON omitted to save context length]"})
+            else:
+                messages.append(turn)
+
+    # Build user message with explicit language and quiz length demands
+    user_content = f"USER QUERY: {query}\n\n=========================================\nCRITICAL LANGUAGE ENFORCEMENT:\n- You MUST write ALL JSON content (explanations, notes, questions, options) in strictly {text_language.upper()} (EXCEPT Mermaid code structure and image queries, which stay in English)."
+    if audio_requested:
+        user_content += f"\n- You MUST write the 'audio_script' field in strictly {audio_language.upper()}."
+    else:
+        user_content += "\n- DO NOT GENERATE AN AUDIO SCRIPT. Leave the 'audio_script' field completely empty string \"\" to save output tokens."
+    user_content += f"\n- DO NOT default to English unless English is requested. If {text_language.upper()} is Hindi, output Devnagari script. If Hinglish, output Romanized Hindi.\n========================================="
+
+    print(f"DEBUG: Generating Response for text_lang={text_language}, audio_lang={audio_language}, intent={intent}, audio_req={audio_requested}")
+    if intent == "quiz":
         quiz_specs = []
         quiz_specs.append(f"Generate exactly {num_questions} questions.")
         quiz_specs.append(f"The difficulty level must be: {difficulty}.")
-        
-        if question_type == "True/False" or question_type == "True False":
+        quiz_specs.append(f"Follow Bloom's Taxonomy progression: Remember → Understand → Apply → Analyze.")
+        quiz_specs.append(f"Progress difficulty within the quiz: start Easy, then Medium, then Hard.")
+
+        if question_type in ("True/False", "True False"):
             quiz_specs.append("All questions must be True/False type, where options are strictly 'A': 'True' and 'B': 'False'.")
-        elif question_type == "Fill in the Blank":
-            quiz_specs.append("All questions must be 'Fill in the Blank' type (but formatted with A, B, C, D multiple choice options for the blank word).")
         else:
             quiz_specs.append("All questions must be standard Multiple Choice Questions (MCQ) with options A, B, C, D.")
-            
-        user_content = f"{query}\n\nIMPORTANT QUIZ SPECIFICATIONS:\n" + "\n".join(f"- {s}" for s in quiz_specs)
-        
-    resp = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+
+        user_content += f"\n\nIMPORTANT QUIZ SPECIFICATIONS:\n" + "\n".join(f"- {s}" for s in quiz_specs)
+
+    messages.append({"role": "user", "content": user_content})
+
+    model_to_use = override_model or _MODEL
+    active_client = override_client or client
+    active_max_tokens = override_max_tokens or _MAX_TOKENS
+    # API call with configured parameters
+    resp = active_client.chat.completions.create(
+        model=model_to_use,
         response_format={"type": "json_object"},
-        messages=[
-            {"role": "system", "content": prompt},
-            {"role": "user",   "content": user_content}
-        ]
+        temperature=_TEMPERATURE,
+        max_completion_tokens=active_max_tokens,
+        messages=messages,
     )
     return resp.choices[0].message.content
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# JSON VALIDATION (Item #22)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Required fields for explanation responses
+_EXPLANATION_REQUIRED = {
+    "type":                   "explanation",
+    "intent":                 "explanation",
+    "tags":                   [],
+    "topic_title":            "Concept Details",
+    "notes_intro":            "",
+    "notes_key_concepts":     ["Key concepts detail"],
+    "notes_examples":         ["Example"],
+    "notes_summary":          "Summary",
+    "visual":                 {"visual_type": "none"},
+}
+
+# Required fields for quiz responses
+_QUIZ_REQUIRED = {
+    "type":       "quiz",
+    "intent":     "quiz",
+    "tags":       [],
+    "quiz_title": "Quiz",
+    "intro_text": "Let's start the quiz!",
+    "questions":  [],
+}
+
+# Required fields per quiz question
+_QUESTION_REQUIRED = {
+    "question_number": 1,
+    "bloom_level":     "Remember",
+    "question_text":   "",
+    "options":         {"A": "", "B": "", "C": "", "D": ""},
+    "correct_option":  "A",
+    "explanation":     "",
+    "audio_script":    "",
+}
+
+
+def _validate_response(data: dict) -> dict:
+    """
+    Validate and fill missing fields in the LLM response.
+    Ensures all required fields exist with correct types.
+    """
+    resp_type = data.get("type", "explanation")
+
+    if resp_type == "quiz":
+        template = _QUIZ_REQUIRED
+    else:
+        template = _EXPLANATION_REQUIRED
+
+    # Fill missing top-level fields
+    for key, default in template.items():
+        if key not in data or data[key] is None:
+            data[key] = default
+        elif isinstance(default, list) and not isinstance(data[key], list):
+            data[key] = [data[key]] if data[key] else default
+        elif isinstance(default, str) and not isinstance(data[key], str):
+            data[key] = str(data[key]) if data[key] else default
+        elif isinstance(default, dict) and not isinstance(data[key], dict):
+            data[key] = default
+
+    # Validate visual object
+    if "visual" not in data or not isinstance(data["visual"], dict):
+        data["visual"] = {"visual_type": "none"}
+    elif "visual_type" not in data["visual"]:
+        data["visual"]["visual_type"] = "none"
+
+    # Validate quiz questions
+    if resp_type == "quiz" and data.get("questions"):
+        validated_qs = []
+        for i, q in enumerate(data["questions"]):
+            if not isinstance(q, dict):
+                continue
+            for key, default in _QUESTION_REQUIRED.items():
+                if key not in q or q[key] is None:
+                    q[key] = default
+            q["question_number"] = i + 1
+            validated_qs.append(q)
+        data["questions"] = validated_qs
+
+    return data
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# JSON REPAIR HELPER (Item #23)
+# ══════════════════════════════════════════════════════════════════════════════
+def _attempt_json_repair(raw: str) -> dict | None:
+    """Try to repair common JSON issues from LLM output."""
+    clean = raw.strip()
+
+    # Remove markdown code fences
+    if clean.startswith("```json"):
+        clean = clean[7:]
+    elif clean.startswith("```"):
+        clean = clean[3:]
+    if clean.endswith("```"):
+        clean = clean[:-3]
+    clean = clean.strip()
+
+    # Try direct parse first
+    try:
+        return json.loads(clean)
+    except json.JSONDecodeError:
+        pass
+
+    # Try to extract JSON object from surrounding text
+    match = re.search(r'\{[\s\S]*\}', clean)
+    if match:
+        try:
+            return json.loads(match.group())
+        except json.JSONDecodeError:
+            pass
+
+    # Try fixing common issues: trailing commas
+    fixed = re.sub(r',\s*([}\]])', r'\1', clean)
+    try:
+        return json.loads(fixed)
+    except json.JSONDecodeError:
+        pass
+
+    return None
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PARSE RESPONSE (Items #22, #23, #24)
+# ══════════════════════════════════════════════════════════════════════════════
 def parse_response(raw: str, fallback_title: str = "Concept Detail") -> dict:
     """
-    Cleans up LLM markdown code blocks if present and parses the JSON response.
-    Returns a structured fallback dictionary on parsing failure.
+    Parse and validate the LLM JSON response.
+    Includes JSON repair and structured fallback.
     """
-    try:
-        clean = raw.strip()
-        if clean.startswith("```json"): 
-            clean = clean[7:]
-        if clean.endswith("```"):       
-            clean = clean[:-3]
-        return json.loads(clean.strip())
-    except Exception:
-        return {
-            "type":                   "explanation",
-            "topic_title":            fallback_title,
-            "notes_intro":            raw,
-            "notes_key_concepts":     ["Concept definition in progress..."],
-            "notes_important_points": ["Study point 1", "Study point 2"],
-            "notes_examples":         ["Real-world classroom example"],
-            "notes_summary":          "Summary of the explained concept.",
-            "analogy_title":          "Classroom Analogy",
-            "analogy_text":           "Analogy details comparing the concept to daily school elements.",
-            "audio_script":           raw,
-        }
+    # Attempt 1: Direct parse
+    data = _attempt_json_repair(raw)
+
+    if data is not None:
+        return _validate_response(data)
+
+    # Attempt 2 failed — return structured fallback (Item #24)
+    logger.warning("JSON parse failed after repair attempts. Using fallback.")
+    fallback = {
+        "type":                   "explanation",
+        "intent":                 "explanation",
+        "topic_title":            fallback_title,
+        "learning_objectives":    [f"Understand {fallback_title}"],
+        "prerequisites":          [],
+        "notes_intro":            raw[:500] if len(raw) > 500 else raw,
+        "notes_key_concepts":     ["Concept details are being processed..."],
+        "notes_important_points": ["Key point 1", "Key point 2"],
+        "notes_examples":         ["Real-world classroom example"],
+        "common_mistakes":        [],
+        "memory_tip":             "",
+        "fun_fact":               "",
+        "real_life_applications": [],
+        "notes_summary":          "Summary of the explained concept.",
+        "visual":                 {"visual_type": "none"},
+        "follow_up_questions":    ["What more would you like to know?"],
+        "audio_script":           raw[:500] if len(raw) > 500 else raw,
+        "_error":                 "json_parse_failed",
+        "_error_message":         "The AI response could not be parsed. Showing raw content.",
+    }
+    return fallback
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# RETRY WRAPPER (Item #23)
+# ══════════════════════════════════════════════════════════════════════════════
+def generate_and_parse(
+    query: str,
+    text_language: str = "English",
+    audio_language: str = "English",
+    num_questions: int = 5,
+    difficulty: str = "Medium",
+    question_type: str = "MCQ",
+    class_level: int = 8,
+    conversation_history: list = None,
+    audio_requested: bool = True,
+    fallback_title: str = "Concept Detail",
+) -> dict:
+    """
+    Generate LLM response with automatic retry on failure using a Multi-Model Fallback Chain.
+    Returns a validated, parsed dict.
+    """
+    # Item #5: Fallback Router Chain (Updated with active Groq models and high TPM limits)
+    # Updated fallback chain with only the robust, valid Groq models
+    fallback_chain = [_MODEL, "llama-3.1-8b-instant"]
+    
+    # Outer loop: Try each API key if Rate Limit is hit
+    for key_idx, current_key in enumerate(API_KEYS):
+        local_client = Groq(api_key=current_key) if current_key else None
+        
+        # Inner loop: Try fallback models
+        for i, model in enumerate(fallback_chain):
+            try:
+                if i > 0:
+                    logger.info(f"Retrying LLM call (Attempt {i+1}) using fallback model: {model} on Key #{key_idx+1}")
+                    import time
+                    time.sleep(1.0) # Brief wait on rate limits
+                else:
+                    logger.info(f"Attempt 1 using primary model: {model} on Key #{key_idx+1}")
+                    
+                local_max_tokens = 3000 if "8b" in model.lower() else _MAX_TOKENS
+
+                raw = generate_response(
+                    query, text_language, audio_language, num_questions, difficulty,
+                    question_type, class_level, conversation_history, 
+                    override_model=model, override_client=local_client,
+                    override_max_tokens=local_max_tokens, audio_requested=audio_requested
+                )
+                data = _attempt_json_repair(raw)
+                if data is not None:
+                    return _validate_response(data)
+            except Exception as e:
+                err_str = str(e).lower()
+                logger.error(f"Model {model} failed on Key #{key_idx+1}: {e}")
+                
+                # If rate limit hit, break inner loop to try next API KEY immediately
+                if "rate limit" in err_str or "429" in err_str:
+                    logger.info(f"Rate limit hit on Key #{key_idx+1}, switching to next API key.")
+                    break 
+
+    # Final fallback if ALL models in the chain fail
+    return parse_response("", fallback_title=fallback_title)

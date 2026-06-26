@@ -40,46 +40,25 @@ with c2:
 
 if submitted and query.strip():
     process(query.strip())
-    if st.session_state.get("quiz_active"):
-        st.switch_page("pages/pg_quiz.py")
-    else:
-        st.switch_page("pages/pg_notes.py")
 elif submitted:
     st.warning("Please type a question first.")
 
 # ── Quick suggestions ─────────────────────────────────────────────────────────
 st.markdown('<div class="sa-divider"></div>', unsafe_allow_html=True)
-st.markdown("""
-<div class="try-asking-title">💡 Quick suggestions</div>
-<div class="suggestion-grid">
-    <a href="?ask=Explain+Photosynthesis" class="suggestion-card" target="_self">
-        <span class="suggestion-icon">🍃</span>
-        <span>Explain Photosynthesis</span>
-    </a>
-    <a href="?ask=How+does+the+Human+Heart+work%3F" class="suggestion-card" target="_self">
-        <span class="suggestion-icon">❤️</span>
-        <span>How does the Human Heart work?</span>
-    </a>
-    <a href="?ask=Explain+the+Water+Cycle" class="suggestion-card" target="_self">
-        <span class="suggestion-icon">💧</span>
-        <span>Explain the Water Cycle</span>
-    </a>
-    <a href="?ask=What+is+Cell+Structure%3F" class="suggestion-card" target="_self">
-        <span class="suggestion-icon">🔬</span>
-        <span>What is Cell Structure?</span>
-    </a>
-</div>
-""", unsafe_allow_html=True)
-
-# Handle suggestion clicks
-if "ask" in st.query_params:
-    q = st.query_params["ask"]
-    st.query_params.clear()
-    process(q)
-    if st.session_state.get("quiz_active"):
-        st.switch_page("pages/pg_quiz.py")
-    else:
-        st.switch_page("pages/pg_notes.py")
+text_lang = st.session_state.text_language
+audio_lang = st.session_state.audio_language
+st.markdown('<div class="try-asking-title">💡 Quick suggestions</div>', unsafe_allow_html=True)
+sc1, sc2 = st.columns(2)
+with sc1:
+    if st.button("🍃 Explain Photosynthesis", use_container_width=True, key="type_sug_1"):
+        process("Explain Photosynthesis")
+    if st.button("💧 Explain the Water Cycle", use_container_width=True, key="type_sug_3"):
+        process("Explain the Water Cycle")
+with sc2:
+    if st.button("❤️ How does the Human Heart work?", use_container_width=True, key="type_sug_2"):
+        process("How does the Human Heart work?")
+    if st.button("🔬 What is Cell Structure?", use_container_width=True, key="type_sug_4"):
+        process("What is Cell Structure?")
 
 # ── Tip ───────────────────────────────────────────────────────────────────────
 st.markdown("""

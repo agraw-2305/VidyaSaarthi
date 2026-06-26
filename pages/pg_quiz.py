@@ -14,7 +14,7 @@ init_state()
 load_css()
 render_header()
 
-lang        = st.session_state.language
+lang        = st.session_state.get("audio_language", "English")
 quiz_active = st.session_state.quiz_active
 quiz_data   = st.session_state.quiz_data
 audio_path  = st.session_state.audio_path
@@ -81,9 +81,11 @@ if quiz_active and quiz_data:
         col_question, col_visual = st.columns([3, 2], gap="large")
 
         with col_question:
+            import html
+            q_text = html.escape(current_q.get("question_text", ""))
             # Question text
             st.markdown(f"""
-            <div class="quiz-question">{current_q.get("question_text", "")}</div>
+            <div class="quiz-question">{q_text}</div>
             """, unsafe_allow_html=True)
 
             # Add quiz type marker for button styling
@@ -147,13 +149,14 @@ if quiz_active and quiz_data:
                 card_cls   = "fb-card-correct"    if is_ok else "fb-card-incorrect"
                 card_color = "#059669"             if is_ok else "#DC2626"
 
+                exp_text = html.escape(current_q.get("explanation", ""))
                 st.markdown(f"""
                 <div class="{card_cls}">
                     <div class="fb-head" style="color:{card_color};">{card_title}</div>
                     <div style="font-size:0.9rem; font-weight:600; color:{card_color}; margin-bottom:0.3rem;">
                         Correct Answer: Option {correct}
                     </div>
-                    <div class="fb-exp">{current_q.get("explanation", "")}</div>
+                    <div class="fb-exp">{exp_text}</div>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -274,8 +277,8 @@ else:
         key="quiz_topic_inp",
     )
 
-    # Three quiz type cards
-    c1, c2, c3 = st.columns(3, gap="medium")
+    # Two quiz type cards
+    c1, c2 = st.columns(2, gap="medium")
 
     with c1:
         st.markdown("""
@@ -294,22 +297,6 @@ else:
                 st.warning("Please enter a topic first.")
 
     with c2:
-        st.markdown("""
-        <div class="quiz-type-card">
-            <span class="quiz-type-icon">✏️</span>
-            <div class="quiz-type-label">Fill in the Blanks</div>
-            <div class="quiz-type-desc">Complete the missing words</div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("Start Fill in the Blanks", key="start_fill", use_container_width=True):
-            if topic_box.strip():
-                process(f"Quiz on '{topic_box.strip()}'", num_q=10,
-                       q_type="Fill in the Blank")
-                st.rerun()
-            else:
-                st.warning("Please enter a topic first.")
-
-    with c3:
         st.markdown("""
         <div class="quiz-type-card">
             <span class="quiz-type-icon">✅</span>

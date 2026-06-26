@@ -3,11 +3,16 @@ import os
 
 
 from dotenv import load_dotenv
+load_dotenv(override=True)
 
-load_dotenv()
+_keys_str = os.getenv("GROQ_API_KEYS", "")
+API_KEYS = [k.strip() for k in _keys_str.split(",") if k.strip()]
+if not API_KEYS:
+    single_key = os.getenv("GROQ_API_KEY", "").strip()
+    API_KEYS = [single_key] if single_key else []
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-
+api_key = API_KEYS[0] if API_KEYS else None
+client = Groq(api_key=api_key) if api_key else None
 # Known Whisper hallucination phrases to reject
 HALLUCINATIONS = {
     "झाल", "झाल झाल", "धन्यवाद", "subscribe", "subscribed",
@@ -15,9 +20,14 @@ HALLUCINATIONS = {
 }
 
 def speech_to_text(audio_path):
-    print("Audio path:", audio_path)
-    print("File exists:", os.path.exists(audio_path))
-    # Reject tiny/empty audio files (< 5KB = likely silence
+    if not client:
+        return "[Error: GROQ API Key is missing. Please check your .env file]"
+
+    # Check if file exists
+    if not os.path.exists(audio_path):
+        return "[Audio file missing — please try again]"
+
+    # Reject tiny/empty audio files (< 5KB = likely silence)
     file_size = os.path.getsize(audio_path)
     if file_size < 5000:
         return "[Audio too short — please speak clearly and try again]"

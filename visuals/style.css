@@ -949,21 +949,79 @@ section[data-testid="stSidebar"] [data-testid="stSidebarNav"] {
 }
 
 .header-home-spacer {
-    height: 60px !important;
+    height: 40px !important;
 }
 
-.st-key-header_home_btn {
-    position: fixed !important;
-    top: 95px !important;
-    left: 1.5rem !important;
-    z-index: 99999 !important;
-    margin: 0 !important;
+/* For mobile screen sizes, make the spacer smaller to fit content nicely */
+@media (max-width: 768px) {
+    .header-home-spacer {
+        height: 25px !important;
+    }
+}
+
+/* Ensure the header buttons columns row stays as a row on all screen sizes */
+div[data-testid="element-container"]:has(.header-home-spacer) + div[data-testid="stHorizontalBlock"] {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    width: 100% !important;
+    gap: 12px !important;
+    margin: 0 0 1rem 0 !important;
     padding: 0 !important;
+}
+
+/* Set columns inside the header buttons block to be side-by-side and compact */
+div[data-testid="element-container"]:has(.header-home-spacer) + div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
+    display: block !important;
+    min-width: 0 !important;
+    overflow: visible !important; /* Ensure dropdowns/popovers can spill out */
+}
+
+/* Column 1: Home button */
+div[data-testid="element-container"]:has(.header-home-spacer) + div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(1) {
+    width: 110px !important;
+    flex: 0 0 auto !important;
+}
+
+/* Column 2: Settings popover button */
+div[data-testid="element-container"]:has(.header-home-spacer) + div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(2) {
+    width: 130px !important;
+    flex: 0 0 auto !important;
+}
+
+/* Column 3: spacer column takes up all remaining width */
+div[data-testid="element-container"]:has(.header-home-spacer) + div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(3) {
+    flex: 1 1 auto !important;
     width: auto !important;
 }
 
-section[data-testid="stSidebar"]:not([data-collapsed="true"]) ~ .stMain .st-key-header_home_btn {
-    left: calc(336px + 1.5rem) !important;
+/* Header Button Styling to match light backgrounds below the header */
+div[data-testid="element-container"]:has(.header-home-spacer) + div[data-testid="stHorizontalBlock"] button {
+    background-color: #FFFFFF !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border) !important;
+    min-height: 38px !important;
+    padding: 0.2rem 1rem !important;
+    font-size: 0.88rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 8px !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+div[data-testid="element-container"]:has(.header-home-spacer) + div[data-testid="stHorizontalBlock"] button p {
+    color: var(--text-primary) !important;
+    margin: 0 !important;
+    font-weight: 600 !important;
+}
+div[data-testid="element-container"]:has(.header-home-spacer) + div[data-testid="stHorizontalBlock"] button:hover {
+    background-color: #F8FAFC !important;
+    border-color: var(--primary) !important;
+}
+div[data-testid="element-container"]:has(.header-home-spacer) + div[data-testid="stHorizontalBlock"] button:hover p {
+    color: var(--primary) !important;
 }
 
 /* Buttons */
@@ -1556,9 +1614,13 @@ div[data-testid="element-container"]:has(a[data-testid="stPageLink-NavLink"]):no
 .stApp:has(.home-page-marker) .block-container {
     display: flex !important;
     flex-direction: column !important;
-    justify-content: center !important;
+    justify-content: flex-start !important;
     align-items: center !important;
     min-height: 80vh !important;
+}
+
+.stApp:has(.home-page-marker) .home-greeting {
+    margin-top: 5vh !important;
 }
 
 .stApp:has(.home-page-marker) .mic-rec-container iframe {
@@ -1727,4 +1789,218 @@ div[data-testid="column"]:has(.quiz-marker-tf) button:hover,
 div[data-testid="column"]:has(.quiz-marker-tf) button[data-testid^="baseButton"]:hover {
     background-color: rgba(16, 185, 129, 0.08) !important;
     color: #10B981 !important;
+}
+
+/* ── Floating Language Selectors ─────────────────────────────────────────── */
+.sa-floating-lang {
+    position: fixed;
+    top: 12px;
+    right: 16px;
+    z-index: 10000;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    background: rgba(30, 41, 59, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 6px 12px;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sa-lang-group {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.sa-lang-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.7);
+    white-space: nowrap;
+    letter-spacing: 0.03em;
+}
+
+.sa-lang-select {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s ease;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.6)'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    padding-right: 20px;
+}
+
+.sa-lang-select:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.35);
+}
+
+.sa-lang-select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.3);
+}
+
+.sa-lang-select option {
+    background: #1E293B;
+    color: #fff;
+    padding: 6px;
+}
+
+/* ── Floating Language Selectors Toggle Button ────────────────────────────── */
+.sa-lang-toggle {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.85);
+    border-radius: 8px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s ease;
+    padding: 0;
+    margin-left: 4px;
+}
+
+.sa-lang-toggle:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.35);
+    color: #fff;
+}
+
+/* Icons toggling */
+.sa-floating-lang .sa-lang-toggle .icon-hidden {
+    display: none;
+}
+.sa-floating-lang .sa-lang-toggle .icon-visible {
+    display: inline-block;
+}
+
+/* Collapsed state styling */
+.sa-floating-lang.collapsed {
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+.sa-floating-lang.collapsed .sa-lang-group {
+    display: none !important;
+}
+
+.sa-floating-lang.collapsed .sa-lang-toggle {
+    background: rgba(30, 41, 59, 0.9) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 50% !important;
+    width: 44px !important;
+    height: 44px !important;
+    font-size: 1.3rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2) !important;
+    margin: 0 !important;
+}
+
+.sa-floating-lang.collapsed .sa-lang-toggle:hover {
+    background: var(--primary) !important;
+    border-color: rgba(255, 255, 255, 0.35) !important;
+    transform: scale(1.08);
+}
+
+.sa-floating-lang.collapsed .sa-lang-toggle .icon-hidden {
+    display: inline-block;
+}
+.sa-floating-lang.collapsed .sa-lang-toggle .icon-visible {
+    display: none;
+}
+
+/* Responsive: stack vertically on small screens */
+@media (max-width: 600px) {
+    .sa-floating-lang {
+        flex-direction: column;
+        gap: 6px;
+        padding: 8px 10px;
+        top: 8px;
+        right: 8px;
+    }
+    .sa-lang-group {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   NOTES PAGE TYPOGRAPHY & LAYOUT
+   ══════════════════════════════════════════════════════════════════════════════ */
+.notes-title {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: #0F172A;
+    margin-bottom: 1rem;
+    line-height: 1.2;
+}
+
+.notes-intro {
+    font-size: 1.15rem;
+    color: #334155;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+    text-align: justify;
+}
+
+.key-points-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1E293B;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+
+.topics-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.topic-pill {
+    display: block;
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    background: #F8FAFC;
+    color: #475569;
+    font-size: 0.95rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.topic-pill:hover {
+    background: #EFF6FF;
+    color: #2563EB;
+    border-color: #BFDBFE;
+}
+
+.topic-pill.active-topic {
+    background: #EFF6FF;
+    color: #2563EB;
+    font-weight: 600;
+    border-color: #93C5FD;
 }

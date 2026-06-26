@@ -13,100 +13,74 @@ Public API:
     get_smart_visual(topic, explanation, language) -> dict
 """
 
-from visuals.graphviz_generator import generate_graphviz_visual
+from visuals.mermaid_generator import generate_mermaid_visual
 from visuals.infographic_generator import (
     generate_educational_infographic,
     generate_comparison_cards,
-    generate_timeline_cards
+    generate_timeline_cards,
+    generate_table_visual
 )
 from visuals.wikimedia_fetcher import fetch_wikimedia_image
 
 
-def classify_visual_type(topic: str, explanation: str) -> str:
+def get_smart_visual(visual_data: dict, fallback_topic: str = "") -> dict:
     """
-    Classifies the user query/topic based on keywords to select the best visual representation.
+    Retrieves the visual asset content based on the structured visual data provided by the LLM.
     """
-    combined = (topic + " " + explanation[:250]).lower()
-
-    # 1. Educational Image (Anatomy, Geography, Astronomy, Biology Objects)
-    image_kws = [
-        "heart", "brain", "cell", "solar system", "volcano", "skeleton", "map",
-        "flower", "digestive", "anatomy", "geography", "astronomy", "biology",
-        "lungs", "kidney", "liver", "eye", "ear", "skeleton", "bone", "leaf",
-        "root", "seed", "fruit", "planet", "galaxy", "continent", "india"
-    ]
-    if any(kw in combined for kw in image_kws):
-        return "educational_image"
-
-    # 2. Comparison Cards (Difference, Compare, VS)
-    compare_kws = ["difference", "compare", "vs", "versus", "antar", "fark", "tulna"]
-    if any(kw in combined for kw in compare_kws):
-        return "comparison_card"
-
-    # 3. Timeline Cards (History, Timeline, Journey)
-    timeline_kws = ["history", "timeline", "journey", "life of", "freedom movement", " struggle", "itihas"]
-    if any(kw in combined for kw in timeline_kws):
-        return "timeline"
-
-    # 4. Infographic (Process, Cycle, Working, Steps)
-    info_kws = ["cycle", "process", "working", "steps", "how does", "water cycle", "photosynthesis", "prakriya", "chakra"]
-    if any(kw in combined for kw in info_kws):
-        return "infographic"
-
-    # 5. Graphviz (Simple flowcharts and classification trees)
-    flow_kws = ["flow", "classification", "tree", "seed to", "food chain", "animal classification", "lifecycle"]
-    if any(kw in combined for kw in flow_kws):
-        return "graphviz"
-
-    # Default to simple process diagram (Graphviz flowchart)
-    return "graphviz"
-
-
-def get_smart_visual(topic: str, explanation: str, language: str = "Hinglish") -> dict:
-    """
-    Retrieves the visual asset content based on classified category, cascading if generation fails.
-    """
-    vtype = classify_visual_type(topic, explanation)
+    if not visual_data:
+        vtype = "educational_image"
+        topic = fallback_topic
+    else:
+        vtype = visual_data.get("visual_type", "educational_image").lower()
+        topic = visual_data.get("query") or visual_data.get("title") or fallback_topic
 
     # ── 1. Educational Image ──────────────────────────────────────────────────
-    if vtype == "educational_image":
+    if vtype == "educational_image" or vtype == "image":
         img = fetch_wikimedia_image(topic)
         if img:
             return {"type": "educational_image", "content": img, "label": "🖼️ Educational Diagram"}
-        # Fallback if image not found
-        vtype = "infographic"
+        vtype = "none"
 
     # ── 2. Educational Infographic ────────────────────────────────────────────
     if vtype == "infographic":
-        html = generate_educational_infographic(topic, explanation, language)
+        html = generate_educational_infographic(visual_data)
         if html:
             return {"type": "infographic", "content": html, "label": "💡 Process Infographic"}
-        vtype = "graphviz"
+        vtype = "mermaid"
 
     # ── 3. Comparison Card ────────────────────────────────────────────────────
-    if vtype == "comparison_card":
-        html = generate_comparison_cards(topic, explanation, language)
+    if vtype == "comparison":
+        html = generate_comparison_cards(visual_data)
         if html:
             return {"type": "comparison", "content": html, "label": "⚖️ Comparison Cards"}
-        vtype = "graphviz"
+        vtype = "mermaid"
 
     # ── 4. Timeline ───────────────────────────────────────────────────────────
     if vtype == "timeline":
-        html = generate_timeline_cards(topic, explanation, language)
+        html = generate_timeline_cards(visual_data)
         if html:
             return {"type": "timeline", "content": html, "label": "⏳ Timeline Summary"}
-        vtype = "graphviz"
+        vtype = "mermaid"
 
-    # ── 5. Graphviz (Process Flow / Classification Tree) ──────────────────────
-    if vtype == "graphviz":
-        svg = generate_graphviz_visual(topic, explanation, language)
-        if svg:
-            return {"type": "graphviz", "content": svg, "label": "📊 Concept flowchart"}
+    # ── 5. Mermaid.js (Process Flow / Classification Tree) ────────────────────
+    if vtype in ("mermaid", "flowchart", "mindmap", "classification_tree", "cycle", "network"):
+        html = generate_mermaid_visual(visual_data)
+        if html:
+            return {"type": "mermaid", "content": html, "label": "📊 Concept flowchart"}
+        vtype = "none"
+
+    # ── 6. Table ──────────────────────────────────────────────────────────────
+    if vtype == "table":
+        html = generate_table_visual(visual_data)
+        if html:
+            return {"type": "table", "content": html, "label": "📊 Table Summary"}
+        vtype = "none"
 
     # Final Fallback to Wikimedia search
-    img = fetch_wikimedia_image(topic)
-    if img:
-        return {"type": "educational_image", "content": img, "label": "🖼️ Educational Diagram"}
+    if fallback_topic:
+        img = fetch_wikimedia_image(fallback_topic)
+        if img:
+            return {"type": "educational_image", "content": img, "label": "🖼️ Educational Diagram"}
 
     return {"type": "none", "content": None, "label": ""}
 
@@ -116,7 +90,6 @@ def render_visual(visual_result: dict):
     Renders the visual result inside Streamlit.
     """
     import streamlit as st
-    import streamlit.components.v1 as _c
 
     vtype   = visual_result.get("type")
     content = visual_result.get("content")
@@ -125,11 +98,15 @@ def render_visual(visual_result: dict):
         st.info("No visual aid available for this topic.")
         return
 
-    if vtype in ("infographic", "comparison", "timeline", "graphviz"):
+    if vtype in ("infographic", "comparison", "timeline", "mermaid", "table"):
         height = 420
         if vtype == "comparison": height = 480
         elif vtype == "timeline": height = 500
-        st.iframe(content, height=height)
+        elif vtype == "table": height = 440
+        
+        import base64
+        b64 = base64.b64encode(content.encode('utf-8')).decode('utf-8')
+        st.markdown(f'<iframe src="data:text/html;base64,{b64}" width="100%" height="{height}" frameborder="0" scrolling="yes"></iframe>', unsafe_allow_html=True)
 
     elif vtype == "educational_image":
         img_url = content.get("image_url")
@@ -147,13 +124,14 @@ def render_visual(visual_result: dict):
             """, unsafe_allow_html=True)
 
         if title or desc:
+            import html
             st.markdown(f"""
             <div style="margin-top:0.6rem; padding:0.7rem 1rem;
                         background:rgba(37,99,235,0.06); border-left:3px solid #2563EB;
                         border-radius:8px;">
-                <div style="font-weight:700; color:#1E3A8A;">{title}</div>
-                <div style="font-size:0.9rem; color:#475569; margin-top:0.2rem; line-height:1.5;">{desc}</div>
-                <div style="font-size:0.75rem; color:#94A3B8; margin-top:0.3rem;">Source: {source}</div>
+                <div style="font-weight:700; color:#1E3A8A;">{html.escape(title)}</div>
+                <div style="font-size:0.9rem; color:#475569; margin-top:0.2rem; line-height:1.5;">{html.escape(desc)}</div>
+                <div style="font-size:0.75rem; color:#94A3B8; margin-top:0.3rem;">Source: {html.escape(source)}</div>
             </div>
             """, unsafe_allow_html=True)
     

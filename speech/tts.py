@@ -4,6 +4,9 @@ import threading
 import os
 import uuid
 
+import time
+import glob
+
 VOICE_MAP = {
     "Hindi":    "hi-IN-SwaraNeural",
     "English":  "en-IN-NeerjaNeural",
@@ -17,8 +20,15 @@ async def _generate(text, voice, path):
 def text_to_speech(text, language="Hinglish"):
     voice = VOICE_MAP.get(language, "hi-IN-SwaraNeural")
     os.makedirs("temp", exist_ok=True)
-    # Unique filename per call — avoids race conditions when TTS is called
-    # multiple times (e.g. quiz question audio + feedback audio in one session)
+    # Cleanup old TTS files (older than 1 hour)
+    try:
+        now = time.time()
+        for f in glob.glob("temp/tts_*.mp3"):
+            if os.path.getmtime(f) < now - 3600:
+                os.remove(f)
+    except Exception as e:
+        print("Cleanup error:", e)
+
     output_path = f"temp/tts_{uuid.uuid4().hex[:8]}.mp3"
 
     def run():
