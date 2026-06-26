@@ -258,11 +258,9 @@ def render_header():
     st.markdown(header_html, unsafe_allow_html=True)
 
     st.markdown('<div class="header-home-spacer"></div>', unsafe_allow_html=True)
-    # Use native Streamlit layout instead of custom HTML/JS hard reloads
     col1, col2, col3 = st.columns([2, 2, 8])
     with col1:
-        if st.button("🏠 Home", use_container_width=True):
-            st.switch_page("pages/pg_home.py")
+        st.page_link("pages/pg_home.py", label="Home", icon="🏠", use_container_width=True)
             
     with col2:
         with st.popover("⚙️ Settings", use_container_width=True):
