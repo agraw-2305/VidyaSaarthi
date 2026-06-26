@@ -43,34 +43,34 @@ The core of ShikshaAI relies on a robust pipeline that routes user queries, fetc
 
 ```mermaid
 flowchart TD
-    User([👤 User Input]) -->|Voice/Text| Router{Intent Router}
+    User(["👤 User Input"]) -->|"Voice/Text"| Router{"Intent Router"}
     
     subgraph Speech Processing
-        Voice[Microphone Audio] --> STT[Whisper STT Model]
+        Voice["Microphone Audio"] --> STT["Whisper STT Model"]
         STT --> User
     end
     
-    Router -->|Explanation/Compare| PromptGen[Prompt Builder]
-    Router -->|Quiz| QuizGen[Quiz Prompt Builder]
+    Router -->|"Explanation/Compare"| PromptGen["Prompt Builder"]
+    Router -->|"Quiz"| QuizGen["Quiz Prompt Builder"]
     
-    PromptGen --> Groq[Groq API (Llama 3.3/3.1)]
+    PromptGen --> Groq["Groq API (Llama 3.3/3.1)"]
     QuizGen --> Groq
     
-    Groq --> Validator[JSON Validator & Repair]
+    Groq --> Validator["JSON Validator & Repair"]
     
-    Validator --> VisMgr{Visual Manager}
-    VisMgr -->|Diagrams/Flows| Mermaid[Mermaid.js Generator]
-    VisMgr -->|Images| Wiki[Wikimedia Fetcher]
-    VisMgr -->|Structures| HTML[Infographic/Cards Generator]
+    Validator --> VisMgr{"Visual Manager"}
+    VisMgr -->|"Diagrams/Flows"| Mermaid["Mermaid.js Generator"]
+    VisMgr -->|"Images"| Wiki["Wikimedia Fetcher"]
+    VisMgr -->|"Structures"| HTML["Infographic/Cards Generator"]
     
-    Validator --> TTS[Edge TTS Engine]
+    Validator --> TTS["Edge TTS Engine"]
     
-    Mermaid --> UI[Streamlit UI]
+    Mermaid --> UI["Streamlit UI"]
     Wiki --> UI
     HTML --> UI
     TTS --> UI
     
-    UI --> Output([🎓 Final Response])
+    UI --> Output(["🎓 Final Response"])
 ```
 
 ---
