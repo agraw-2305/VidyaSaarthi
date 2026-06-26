@@ -115,10 +115,18 @@ def fetch_wikimedia_image(topic: str) -> dict | None:
                 page = list(pages.values())[0]
                 img_url = page.get("thumbnail", {}).get("source", "")
                 if img_url:
+                    title = page.get("title", "")
+                    # Ensure at least one word from the clean query is in the title to prevent unrelated images
+                    query_words = set(query.lower().split())
+                    title_words = set(title.lower().split())
+                    
+                    if not query_words.intersection(title_words) and len(query_words) > 0:
+                        return None
+                        
                     desc = page.get("extract", "").strip()
                     if len(desc) > 200: desc = desc[:197] + "..."
                     return {
-                        "title": page.get("title", ""),
+                        "title": title,
                         "image_url": img_url,
                         "description": desc or f"Educational image for {query}.",
                         "source": "Wikipedia"

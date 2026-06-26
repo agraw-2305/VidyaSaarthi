@@ -76,12 +76,6 @@ def get_smart_visual(visual_data: dict, fallback_topic: str = "") -> dict:
             return {"type": "table", "content": html, "label": "📊 Table Summary"}
         vtype = "none"
 
-    # Final Fallback to Wikimedia search
-    if fallback_topic:
-        img = fetch_wikimedia_image(fallback_topic)
-        if img:
-            return {"type": "educational_image", "content": img, "label": "🖼️ Educational Diagram"}
-
     return {"type": "none", "content": None, "label": ""}
 
 
