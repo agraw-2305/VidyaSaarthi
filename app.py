@@ -1,5 +1,5 @@
 """
-ShikshaAI — app.py (entry point)
+VidyaSaarthi — app.py (entry point)
 Uses st.navigation / st.Page for multi-page routing.
 Each page lives in pages/pg_*.py and imports from pages/shared.py.
 """
@@ -9,7 +9,7 @@ import os
 
 # ── Page config (must be first Streamlit call) ────────────────────────────────
 st.set_page_config(
-    page_title="ShikshaAI",
+    page_title="VidyaSaarthi",
     page_icon="🎓",
     layout="wide",
     initial_sidebar_state="expanded",

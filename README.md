@@ -7,9 +7,9 @@
 
 <br />
 <div align="center">
-  <h1 align="center">ShikshaAI 🎓</h1>
+  <h1 align="center">VidyaSaarthi 🎓</h1>
   <p align="center">
-    <strong>Voice-Enabled AI Teaching Assistant</strong>
+    <strong>Where Knowledge Meets Innovation</strong>
     <br />
     <em>Transforming education through conversational AI, structured learning, and smart visualizations.</em>
   </p>
@@ -19,9 +19,9 @@
 
 ## 📖 Overview & Impact
 
-ShikshaAI is an advanced, voice-enabled AI teaching assistant that revolutionizes digital learning for school students (Classes 5 to 10). By simply speaking or typing a topic, students receive structured, NCERT-aligned explanations alongside beautiful visual aids and interactive quizzes. 
+VidyaSaarthi is an advanced, voice-enabled AI teaching assistant that revolutionizes digital learning for school students (Classes 5 to 10). By simply speaking or typing a topic, students receive structured, NCERT-aligned explanations alongside beautiful visual aids and interactive quizzes. 
 
-Serving as an infinitely patient, 24/7 tutor, ShikshaAI supports multiple languages (English, Hindi, and Hinglish). It acts as a powerful study aid for students and a dynamic, on-the-fly presentation tool for teachers in smart classrooms.
+Serving as an infinitely patient, 24/7 tutor, VidyaSaarthi supports multiple languages (English, Hindi, and Hinglish). It acts as a powerful study aid for students and a dynamic, on-the-fly presentation tool for teachers in smart classrooms.
 
 ---
 
@@ -132,7 +132,7 @@ nscif/
 
 ## 🖼️ Visual Learning System
 
-ShikshaAI utilizes a multi-layered approach to provide the best possible visual aid for any given topic:
+VidyaSaarthi utilizes a multi-layered approach to provide the best possible visual aid for any given topic:
 
 *   **Wikimedia Images:** Fetches highly relevant labeled diagrams and SVGs for anatomical or geographical topics (e.g., Human Heart, Solar System).
 *   **Mermaid.js Diagrams:** Dynamically creates flowcharts, mindmaps, and classification trees for processes and hierarchical concepts.
@@ -151,8 +151,8 @@ ShikshaAI utilizes a multi-layered approach to provide the best possible visual 
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/yourusername/shiksha-ai.git
-cd shiksha-ai
+git clone https://github.com/yourusername/vidyasaarthi.git
+cd vidyasaarthi
 ```
 
 ### 2. Create and activate a Virtual Environment
@@ -188,7 +188,7 @@ The app will open automatically in your browser at `http://localhost:8501`.
 
 ## ⚠️ Current Limitations
 
-While ShikshaAI is highly capable, the current implementation has a few known limitations:
+While VidyaSaarthi is highly capable, the current implementation has a few known limitations:
 *   **API Rate Limits:** Heavy reliance on the free Groq API tier can occasionally result in rate-limit errors (though API key rotation and model fallbacks are implemented to mitigate this).
 *   **TTS Dependency:** Edge-TTS requires an active internet connection and relies on Microsoft's Edge text-to-speech service, which may experience latency.
 *   **Browser Audio Support:** The Streamlit audio recorder may have varying compatibility across different web browsers (Chrome/Edge recommended).
@@ -198,7 +198,7 @@ While ShikshaAI is highly capable, the current implementation has a few known li
 
 ## 🔮 Future Roadmap
 
-Based on the current architecture, here are the planned, realistic improvements for ShikshaAI:
+Based on the current architecture, here are the planned, realistic improvements for VidyaSaarthi:
 
 *   **Expanded Quiz Modes:** Introduce "Fill in the Blanks" and short-answer questions to diversify the testing formats.
 *   **Study Notes Export:** Allow students to download their AI-generated notes and visualizations as neat PDF or Markdown files for offline studying.
@@ -218,7 +218,7 @@ Based on the current architecture, here are the planned, realistic improvements 
 
 ## 🤝 Contributing
 
-Contributions are welcome! If you'd like to improve ShikshaAI:
+Contributions are welcome! If you'd like to improve VidyaSaarthi:
 1. Fork the repository.
 2. Create a new branch (`git checkout -b feature/AmazingFeature`).
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).

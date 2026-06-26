@@ -1,5 +1,5 @@
 """
-ShikshaAI — pages/pg_notes.py
+VidyaSaarthi — pages/pg_notes.py
 Notes page: topics sidebar + structured notes content + visual diagram.
 """
 

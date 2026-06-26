@@ -1,5 +1,5 @@
 """
-ShikshaAI — pages/shared.py
+VidyaSaarthi — pages/shared.py
 Shared utilities: session state, CSS loader, header, bottom nav, processing pipeline.
 Imported by every page.
 """
@@ -246,8 +246,8 @@ def render_header():
         <div class="sa-header-left">
             <div class="sa-header-logo">🎓</div>
             <div class="sa-header-brand">
-                <div class="sa-header-title">ShikshaAI</div>
-                <div class="sa-header-sub">Voice Enabled AI Teaching Assistant</div>
+                <div class="sa-header-title">VidyaSaarthi</div>
+                <div class="sa-header-sub">Where Knowledge Meets Innovation</div>
             </div>
         </div>
         <div class="sa-header-right">
@@ -291,8 +291,8 @@ def render_sidebar_nav(current_file: str):
         <div class="sidebar-brand">
             <span class="sidebar-logo">🎓</span>
             <div class="sidebar-brand-text">
-                <div class="sidebar-title">ShikshaAI</div>
-                <div class="sidebar-sub">AI Teaching Assistant</div>
+                <div class="sidebar-title">VidyaSaarthi</div>
+                <div class="sidebar-sub">Where Knowledge Meets Innovation</div>
             </div>
         </div>
         <div class="sidebar-divider"></div>

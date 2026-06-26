@@ -1,5 +1,5 @@
 """
-ShikshaAI — pages/pg_type.py
+VidyaSaarthi — pages/pg_type.py
 Text input mode: Type your question and get AI-generated explanations.
 """
 

@@ -1,5 +1,5 @@
 """
-ShikshaAI — llm.py
+VidyaSaarthi — llm.py
 Complete LLM engine: intent classification, structured AI teaching,
 NCERT-aligned responses, enriched JSON schema, retry/validation, configurable model.
 """

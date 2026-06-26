@@ -1,5 +1,5 @@
 """
-ShikshaAI — pages/pg_home.py
+VidyaSaarthi — pages/pg_home.py
 Home page: Centered Voice-First Classroom Hero view with suggestions.
 """
 
@@ -27,7 +27,7 @@ st.markdown("""
 <div class="home-page-marker"></div>
 <div class="home-greeting">
     <div class="home-greeting-title">Namaste!</div>
-    <div class="home-greeting-sub">I'm your AI Teaching Assistant</div>
+    <div class="home-greeting-sub">Where Knowledge Meets Innovation</div>
 </div>
 """, unsafe_allow_html=True)
 

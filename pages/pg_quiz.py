@@ -1,5 +1,5 @@
 """
-ShikshaAI — pages/pg_quiz.py
+VidyaSaarthi — pages/pg_quiz.py
 Quiz page: quiz type selection → active quiz interface → score screen.
 """
 
