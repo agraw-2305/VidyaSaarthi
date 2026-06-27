@@ -46,7 +46,7 @@ def fetch_wikimedia_image(topic: str) -> dict | None:
             "action": "query",
             "generator": "search",
             "gsrnamespace": 6,
-            "gsrsearch": f'"{query}" diagram',
+            "gsrsearch": f'{query} diagram',
             "gsrlimit": 5,
             "prop": "imageinfo",
             "iiprop": "url|extmetadata|size",
