@@ -178,9 +178,20 @@ def process(query: str, num_q: int = 5, difficulty: str = "Medium", q_type: str 
         )
     else:
         # Quiz visual generation fallback
-        quiz_topic = data.get("quiz_title", query)
-        if quiz_topic.lower().startswith("quiz on"):
-            quiz_topic = quiz_topic[7:].strip().strip("'\"")
+        # Clean prefix/suffix from query or quiz_title to extract the pure educational topic
+        # e.g., "make a quiz on photosynthesis" -> "Photosynthesis"
+        import re
+        raw_topic = data.get("quiz_title", query)
+        clean = raw_topic.strip()
+        # Strip leading words like make, take, quiz, test, mcq, on, about
+        clean = re.sub(r'^(?:make|take|a|an|quiz|test|mcq|mcqs|questions|practice|on|about|\s)+', '', clean, flags=re.IGNORECASE)
+        # Strip trailing words like quiz, test, mcq, assessment
+        clean = re.sub(r'\s+(?:quiz|test|mcq|mcqs|questions|practice|assessment)\s*$', '', clean, flags=re.IGNORECASE)
+        
+        quiz_topic = clean.strip("'\" ").title()
+        if not quiz_topic:
+            quiz_topic = query
+            
         st.session_state.visual = get_smart_visual(
             None, 
             fallback_topic=quiz_topic
