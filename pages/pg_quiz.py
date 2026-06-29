@@ -291,7 +291,10 @@ else:
         if st.button("Start MCQ Quiz", key="start_mcq", use_container_width=True,
                      type="primary"):
             if topic_box.strip():
-                process(f"Quiz on '{topic_box.strip()}'", num_q=10, q_type="MCQ")
+                process(f"Quiz on '{topic_box.strip()}'", 
+                        num_q=st.session_state.quiz_num_sel, 
+                        difficulty=st.session_state.quiz_diff_sel, 
+                        q_type="MCQ")
                 st.rerun()
             else:
                 st.warning("Please enter a topic first.")
@@ -306,8 +309,10 @@ else:
         """, unsafe_allow_html=True)
         if st.button("Start True / False Quiz", key="start_tf", use_container_width=True):
             if topic_box.strip():
-                process(f"Quiz on '{topic_box.strip()}'", num_q=10,
-                       q_type="True/False")
+                process(f"Quiz on '{topic_box.strip()}'", 
+                        num_q=st.session_state.quiz_num_sel, 
+                        difficulty=st.session_state.quiz_diff_sel,
+                        q_type="True/False")
                 st.rerun()
             else:
                 st.warning("Please enter a topic first.")

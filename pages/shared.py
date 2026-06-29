@@ -134,7 +134,8 @@ def process(query: str, num_q: int = 5, difficulty: str = "Medium", q_type: str 
 
     audio_req = st.session_state.get("voice_enabled", True)
 
-    if not st.session_state.conversation_history:
+    is_quiz = query.strip().lower().startswith("quiz")
+    if not st.session_state.conversation_history and not is_quiz:
         @st.cache_data(show_spinner=False, ttl=3600) # Cache for 1 hour
         def _cached_generate_and_parse_v5(
             q: str, t_lang: str, a_lang: str, n_q: int, diff: str, q_t: str, c_lvl: int, a_req: bool
@@ -150,11 +151,13 @@ def process(query: str, num_q: int = 5, difficulty: str = "Medium", q_type: str 
         )
     else:
         # Don't cache when history is present to avoid cache misses and bloat
+        # Also don't cache quizzes to ensure new questions are generated each time
+        history = st.session_state.conversation_history if st.session_state.conversation_history else None
         data = generate_and_parse(
             query, text_language=text_lang, audio_language=audio_lang,
             num_questions=num_q, difficulty=difficulty, question_type=q_type,
             class_level=st.session_state.class_level, 
-            conversation_history=st.session_state.conversation_history,
+            conversation_history=history,
             audio_requested=audio_req
         )
     st.session_state.parsed = data
