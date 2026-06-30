@@ -60,7 +60,10 @@ def _build_system_prompt(text_language: str, audio_language: str, class_level: i
 # INTENT ROUTER (Item #20, #4)
 # ══════════════════════════════════════════════════════════════════════════════
 def route_intent(query: str, is_quiz_forced: bool = False) -> str:
-    """Uses Python heuristic keyword matching to classify intent. Falls back to LLM if ambiguous."""
+    """
+    Classifies intent using Python heuristics first, then LLM fallback.
+    Returns 'invalid' for nonsensical / non-educational queries.
+    """
     if is_quiz_forced:
         return "quiz"
         
@@ -83,10 +86,19 @@ def route_intent(query: str, is_quiz_forced: bool = False) -> str:
         if not re.search(r'\b(how|why|process)\b', q):
             return "definition"
             
-    # Hybrid Fallback: Use lightweight LLM for ambiguous queries
-    router_prompt = """Classify the user's educational query into exactly ONE of these intents:
-"explanation", "quiz", "definition", "compare", "revision", "homework".
-If unsure, default to "explanation".
+    # Hybrid Fallback: Use lightweight LLM for BOTH intent classification AND validation
+    # This single call replaces the old separate validation LLM call — saves ~20 tokens
+    router_prompt = """You are a strict classifier for a school education app (Class 5-10, NCERT/CBSE).
+Classify the user's input into EXACTLY ONE of these categories:
+- "explanation" — educational question needing a detailed answer
+- "quiz" — user wants a quiz or test
+- "definition" — user wants a definition
+- "compare" — user wants to compare two things
+- "revision" — user wants revision notes or summary
+- "homework" — user wants help solving a problem
+- "invalid" — if the input is nonsense, gibberish, random words, casual chat, greetings, jokes, memes, profanity, off-topic, or NOT related to school/academic learning
+
+Be STRICT about "invalid". If it's not a genuine school/educational query, classify as "invalid".
 Respond STRICTLY with JSON: {"intent": "explanation"}"""
     try:
         resp = client.chat.completions.create(
@@ -101,12 +113,13 @@ Respond STRICTLY with JSON: {"intent": "explanation"}"""
         )
         data = json.loads(resp.choices[0].message.content.strip())
         intent = data.get("intent", "explanation").lower()
-        if intent not in ["explanation", "quiz", "definition", "compare", "revision", "homework"]:
+        if intent not in ["explanation", "quiz", "definition", "compare", "revision", "homework", "invalid"]:
             return "explanation"
         return intent
     except Exception as e:
         logger.warning(f"Hybrid router fallback failed: {e}. Defaulting to explanation.")
         return "explanation"
+
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -125,13 +138,17 @@ def generate_response(
     override_client = None,
     override_max_tokens: int = None,
     audio_requested: bool = True,
+    override_intent: str = None,
 ) -> str:
     """
     Generate an LLM response with full context.
     """
-    # Call the Python router to determine intent
-    is_quiz_forced = (num_questions != 5)
-    intent = route_intent(query, is_quiz_forced)
+    # Use the pre-computed intent (passed in from generate_and_parse to avoid duplicate calls)
+    intent = override_intent or "explanation"
+    
+    # Reject invalid/non-educational queries before wasting a main LLM call
+    if intent == "invalid":
+        return json.dumps({"type": "invalid", "message": "Please ask a school/educational question like 'Explain Photosynthesis' or 'Quiz on Water Cycle'"})
     
     system_prompt = _build_system_prompt(text_language, audio_language, class_level, intent, audio_requested)
 
@@ -371,6 +388,10 @@ def generate_and_parse(
     Generate LLM response with automatic retry on failure using a Multi-Model Fallback Chain.
     Returns a validated, parsed dict.
     """
+    # Classify intent ONCE before the retry loop — avoids duplicate LLM calls
+    is_quiz_forced = (num_questions != 5)
+    intent = route_intent(query, is_quiz_forced)
+
     # Item #5: Fallback Router Chain (Updated with active Groq models and high TPM limits)
     # Updated fallback chain with only the robust, valid Groq models
     fallback_chain = [_MODEL, "llama-3.1-8b-instant"]
@@ -395,7 +416,8 @@ def generate_and_parse(
                     query, text_language, audio_language, num_questions, difficulty,
                     question_type, class_level, conversation_history, 
                     override_model=model, override_client=local_client,
-                    override_max_tokens=local_max_tokens, audio_requested=audio_requested
+                    override_max_tokens=local_max_tokens, audio_requested=audio_requested,
+                    override_intent=intent,
                 )
                 data = _attempt_json_repair(raw)
                 if data is not None:

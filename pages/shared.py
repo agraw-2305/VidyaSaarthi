@@ -110,9 +110,103 @@ def render_processing_state(step: int, pct: int):
     html = f"""<div class="processing-card"><div class="processing-icon-circle"><svg class="hourglass-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M6 2h12v6l-4 4 4 4v6H6v-6l4-4-4-4V2zm10 14.5L12 12.5l-4 4V20h8v-3.5zm-8-9l4 4 4-4V4H8v3.5z"/></svg></div><div class="processing-title">Creating explanation</div><div class="processing-steps"><div class="processing-step {step1_class}"><span class="step-icon">{step1_icon}</span><span class="step-label">Understanding your question</span></div><div class="processing-step {step2_class}"><span class="step-icon">{step2_icon}</span><span class="step-label">Generating visuals</span></div><div class="processing-step {step3_class}"><span class="step-icon">{step3_icon}</span><span class="step-label">Preparing voice reply</span></div></div><div class="processing-progress-container"><div class="processing-progress-bar-bg"><div class="processing-progress-bar" style="width: {pct}%;"></div></div><span class="processing-progress-pct">{pct}%</span></div></div>"""
     return html
 
+# ── Input Validation Guardrail ────────────────────────────────────────────────
+# Layer 1 (here): Fast Python pattern-based checks (no API call)
+# Layer 2 (llm.py → route_intent): LLM classifies "invalid" intent in same call
+# ──────────────────────────────────────────────────────────────────────────────
+
+_NONSENSE_WORDS = {
+    # Greetings / chat
+    "hi", "hello", "hey", "bye", "ok", "okay", "yes", "no", "haha", "lol",
+    "hmm", "hm", "um", "uh", "yo", "sup", "bruh", "bro", "dude", "lmao",
+    "rofl", "idk", "nvm", "nah", "yep", "yup", "nope", "wow", "omg",
+    "thanks", "thank", "thankyou", "sorry", "please", "pls", "k", "kk",
+    "good", "bad", "nice", "cool", "great", "fine", "sure", "yeah",
+    # Keyboard patterns
+    "asdf", "qwerty", "zxcv", "asdfgh", "qwert", "abcd", "abcde",
+    # Repeated letters
+    "aaa", "bbb", "ccc", "ddd", "eee", "fff", "ggg", "hhh", "iii",
+    "jjj", "kkk", "lll", "mmm", "nnn", "ooo", "ppp", "qqq", "rrr",
+    "sss", "ttt", "uuu", "vvv", "www", "xxx", "yyy", "zzz",
+}
+
+_GREETINGS_PATTERNS = [
+    "how are you", "what's up", "whats up", "good morning", "good night",
+    "good evening", "good afternoon", "who are you", "what is your name",
+    "tell me a joke", "sing a song", "write a poem", "tell me something",
+    "i love you", "i hate you", "you are", "are you a", "can you",
+    "do you", "will you", "i am", "my name", "what can you do",
+]
+
+def _is_valid_query(query: str) -> tuple[bool, str]:
+    """
+    Two-layer validation for user queries.
+    Layer 1: Fast Python pattern checks (no API call).
+    Layer 2: Lightweight LLM classifier for borderline cases.
+    Returns (is_valid, rejection_message).
+    """
+    import re
+
+    clean = query.strip()
+    _REJECT_MSG = "I'm VidyaSaarthi — your study buddy! 🎓 Please ask a school/educational question like 'Explain Photosynthesis' or 'Quiz on Water Cycle'"
+
+    # ── LAYER 1: Fast Python Checks (instant, no API call) ────────────────
+
+    # 1. Too short
+    if len(clean) < 2:
+        return False, "Please enter a proper question or topic to learn about! 📝"
+
+    # 2. Only special characters, numbers, or punctuation
+    alpha_only = re.sub(r'[^a-zA-Z\u0900-\u097F]', '', clean)  # Keep English + Hindi Devanagari
+    if len(alpha_only) < 2:
+        return False, "That doesn't look like a question. Try 'Photosynthesis' or 'Newton's Laws'! 🔬"
+
+    words = clean.lower().split()
+
+    # 3. Single nonsense/greeting word
+    if len(words) == 1 and words[0] in _NONSENSE_WORDS:
+        return False, "Hi there! 👋 Please ask an educational question like 'Explain the Water Cycle' or 'What is gravity?'"
+
+    # 4. All words are nonsense
+    if len(words) <= 5 and all(w in _NONSENSE_WORDS for w in words):
+        return False, "I'm your study buddy! 📚 Ask me something like 'How does the heart work?' or 'Quiz on photosynthesis'"
+
+    # 5. Keyboard mashing — no vowels in any word longer than 2 chars
+    vowels = set("aeiouAEIOU")
+    ascii_long_words = [w for w in words if len(w) > 2 and w.isascii()]
+    if ascii_long_words and not any(any(ch in vowels for ch in w) for w in ascii_long_words):
+        return False, "That looks like random characters! 🤔 Try 'Solar System' or 'Cell Structure'"
+
+    # 6. Same character repeated (e.g. "aaaaaaa", "ababab")
+    stripped = clean.lower().replace(" ", "")
+    if len(stripped) >= 3 and len(set(stripped)) <= 2:
+        return False, "Please type a real question or topic! Try 'Explain Photosynthesis' 🌱"
+
+    # 7. Same word repeated 3+ times
+    if len(words) >= 3 and len(set(words)) == 1:
+        return False, "Looks like you're repeating the same word! Ask a question like 'What is DNA?' 🧬"
+
+    # 8. Common greeting/chat patterns
+    lower_clean = clean.lower()
+    for pattern in _GREETINGS_PATTERNS:
+        if lower_clean.startswith(pattern) and len(words) <= 6:
+            return False, _REJECT_MSG
+
+    # Layer 2 validation is now handled inside llm.py's route_intent()
+    # which returns "invalid" intent — no separate LLM call needed here!
+    return True, ""
+
+
 # ── Process pipeline ──────────────────────────────────────────────────────────
 def process(query: str, num_q: int = 5, difficulty: str = "Medium", q_type: str = "MCQ"):
     """Full pipeline: LLM → parse → TTS → Visual generation with dynamic status rendering."""
+
+    # ── Input validation: reject nonsense before wasting an LLM call ──────
+    is_valid, rejection_msg = _is_valid_query(query)
+    if not is_valid:
+        st.warning(rejection_msg)
+        return
+
     st.session_state.query = query
     _reset()
 
@@ -161,6 +255,12 @@ def process(query: str, num_q: int = 5, difficulty: str = "Medium", q_type: str 
             conversation_history=history,
             audio_requested=audio_req
         )
+    # ── Check if LLM classified the query as invalid ──────────────────────
+    if data.get("type") == "invalid":
+        status_placeholder.empty()
+        st.warning(data.get("message", "Please ask a school/educational question! 🎓"))
+        return
+
     st.session_state.parsed = data
     
     # Append to conversation history (last 3 turns = 6 messages)
