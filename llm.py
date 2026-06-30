@@ -61,33 +61,10 @@ def _build_system_prompt(text_language: str, audio_language: str, class_level: i
 # ══════════════════════════════════════════════════════════════════════════════
 def route_intent(query: str, is_quiz_forced: bool = False) -> str:
     """
-    Classifies intent using Python heuristics first, then LLM fallback.
-    Returns 'invalid' for nonsensical / non-educational queries.
+    Classifies intent using a lightweight LLM.
+    ALWAYS runs the LLM to ensure nonsensical queries ('invalid') are caught,
+    even if the user forced a quiz or used the word 'quiz'.
     """
-    if is_quiz_forced:
-        return "quiz"
-        
-    q = query.lower()
-    
-    # Quiz keywords
-    if re.search(r'\b(quiz|test|practice|assessment|mcq|rapid fire|challenge|true false|fill blanks|question paper|mock test)\b', q):
-        return "quiz"
-    # Compare keywords
-    if re.search(r'\b(compare|difference|vs|versus|distinguish)\b', q):
-        return "compare"
-    # Homework keywords
-    if re.search(r'\b(homework|solve|calculate|find the value|equation)\b', q):
-        return "homework"
-    # Revision keywords
-    if re.search(r'\b(revision|revise|summary|summarize|short notes)\b', q):
-        return "revision"
-    # Definition keywords
-    if re.search(r'\b(define|definition|what is|what are|meaning of)\b', q):
-        if not re.search(r'\b(how|why|process)\b', q):
-            return "definition"
-            
-    # Hybrid Fallback: Use lightweight LLM for BOTH intent classification AND validation
-    # This single call replaces the old separate validation LLM call — saves ~20 tokens
     router_prompt = """You are a strict classifier for a school education app (Class 5-10, NCERT/CBSE).
 Classify the user's input into EXACTLY ONE of these categories:
 - "explanation" — educational question needing a detailed answer
@@ -100,6 +77,7 @@ Classify the user's input into EXACTLY ONE of these categories:
 
 Be STRICT about "invalid". If it's not a genuine school/educational query, classify as "invalid".
 Respond STRICTLY with JSON: {"intent": "explanation"}"""
+    
     try:
         resp = client.chat.completions.create(
             model="llama-3.1-8b-instant",
@@ -113,12 +91,22 @@ Respond STRICTLY with JSON: {"intent": "explanation"}"""
         )
         data = json.loads(resp.choices[0].message.content.strip())
         intent = data.get("intent", "explanation").lower()
-        if intent not in ["explanation", "quiz", "definition", "compare", "revision", "homework", "invalid"]:
-            return "explanation"
+        
+        if intent == "invalid":
+            return "invalid"
+            
+        if intent not in ["explanation", "quiz", "definition", "compare", "revision", "homework"]:
+            intent = "explanation"
+            
+        # If valid, but the system forced a quiz (e.g. from Quiz tab), enforce it
+        if is_quiz_forced:
+            return "quiz"
+            
         return intent
+        
     except Exception as e:
         logger.warning(f"Hybrid router fallback failed: {e}. Defaulting to explanation.")
-        return "explanation"
+        return "quiz" if is_quiz_forced else "explanation"
 
 
 
