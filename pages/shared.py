@@ -51,6 +51,7 @@ _DEFAULTS = {
     "history":       [],
     "fb_audio":      None,
     "fb_play":       False,
+    "quiz_q_visuals": {},
     "recent_topics": ["Photosynthesis", "TCP Handshake", "Newton's Laws", "Solar System",
                       "Cell Structure", "Human Heart", "Water Cycle"],
 }
@@ -91,7 +92,7 @@ def parse_response(raw: str) -> dict:
 def _reset():
     for k in ("parsed", "audio_path", "visual", "autoplay", "quiz_active",
               "quiz_data", "q_idx", "selected", "score", "history",
-              "fb_audio", "fb_play"):
+              "fb_audio", "fb_play", "quiz_q_visuals"):
         st.session_state[k] = _DEFAULTS[k]
 
 # ── Processing State Renderer ──────────────────────────────────────────────────
@@ -177,25 +178,32 @@ def process(query: str, num_q: int = 5, difficulty: str = "Medium", q_type: str 
             fallback_topic=data.get("topic_title", query)
         )
     else:
-        # Quiz visual generation fallback
-        # Clean prefix/suffix from query or quiz_title to extract the pure educational topic
-        # e.g., "make a quiz on photosynthesis" -> "Photosynthesis"
-        import re
-        raw_topic = data.get("quiz_title", query)
-        clean = raw_topic.strip()
-        # Strip leading words like make, take, quiz, test, mcq, on, about
-        clean = re.sub(r'^(?:make|take|a|an|quiz|test|mcq|mcqs|questions|practice|on|about|\s)+', '', clean, flags=re.IGNORECASE)
-        # Strip trailing words like quiz, test, mcq, assessment
-        clean = re.sub(r'\s+(?:quiz|test|mcq|mcqs|questions|practice|assessment)\s*$', '', clean, flags=re.IGNORECASE)
+        # Quiz visual generation: prefer LLM-generated visual, fallback to Wikimedia image
+        llm_visual = data.get("visual", {})
+        llm_vtype = llm_visual.get("visual_type", "none").lower() if llm_visual else "none"
         
-        quiz_topic = clean.strip("'\" ").title()
-        if not quiz_topic:
-            quiz_topic = query
+        if llm_visual and llm_vtype != "none":
+            # LLM provided structured visual data (flowchart, infographic, etc.)
+            st.session_state.visual = get_smart_visual(
+                llm_visual, 
+                fallback_topic=data.get("quiz_title", query)
+            )
+        else:
+            # Fallback: extract topic and try Wikimedia image search
+            import re
+            raw_topic = data.get("quiz_title", query)
+            clean = raw_topic.strip()
+            clean = re.sub(r'^(?:make|take|a|an|quiz|test|mcq|mcqs|questions|practice|on|about|\s)+', '', clean, flags=re.IGNORECASE)
+            clean = re.sub(r'\s+(?:quiz|test|mcq|mcqs|questions|practice|assessment)\s*$', '', clean, flags=re.IGNORECASE)
             
-        st.session_state.visual = get_smart_visual(
-            None, 
-            fallback_topic=quiz_topic
-        )
+            quiz_topic = clean.strip("'\" ").title()
+            if not quiz_topic:
+                quiz_topic = query
+                
+            st.session_state.visual = get_smart_visual(
+                None, 
+                fallback_topic=quiz_topic
+            )
 
     # Step 3: Preparing voice reply (90% progress)
     status_placeholder.markdown(render_processing_state(step=3, pct=90), unsafe_allow_html=True)

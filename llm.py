@@ -210,6 +210,7 @@ _QUIZ_REQUIRED = {
     "tags":       [],
     "quiz_title": "Quiz",
     "intro_text": "Let's start the quiz!",
+    "visual":     {"visual_type": "none"},
     "questions":  [],
 }
 
@@ -222,6 +223,7 @@ _QUESTION_REQUIRED = {
     "correct_option":  "A",
     "explanation":     "",
     "audio_script":    "",
+    "visual_hint":     "",
 }
 
 

@@ -35,7 +35,7 @@ if quiz_active and quiz_data:
             st.session_state.update({
                 "quiz_active": False, "quiz_data": None, "q_idx": 0,
                 "selected": None, "score": 0, "history": [],
-                "fb_audio": None, "fb_play": False,
+                "fb_audio": None, "fb_play": False, "quiz_q_visuals": {},
             })
             st.switch_page("pages/pg_home.py")
     with nav2:
@@ -43,7 +43,7 @@ if quiz_active and quiz_data:
             st.session_state.update({
                 "quiz_active": False, "quiz_data": None, "q_idx": 0,
                 "selected": None, "score": 0, "history": [],
-                "fb_audio": None, "fb_play": False,
+                "fb_audio": None, "fb_play": False, "quiz_q_visuals": {},
             })
             st.rerun()
 
@@ -194,13 +194,39 @@ if quiz_active and quiz_data:
                         st.rerun()
 
         with col_visual:
-            # Visual Explanation panel
-            visual = st.session_state.visual
+            # Visual Explanation panel — per-question visuals with fallback to quiz-level visual
             st.markdown('<div class="visual-explanation-title">Visual Aid</div>', unsafe_allow_html=True)
             st.markdown('<div class="quiz-visual-marker"></div>', unsafe_allow_html=True)
-            if visual and visual.get("type") != "none":
+            
+            # Try question-specific visual via visual_hint
+            question_visual = None
+            hint = current_q.get("visual_hint", "").strip()
+            
+            if hint:
+                # Cache per-question visuals to avoid re-fetching on every rerun
+                if "quiz_q_visuals" not in st.session_state:
+                    st.session_state.quiz_q_visuals = {}
+                
+                cache_key = f"q_{q_idx}_{hint}"
+                if cache_key in st.session_state.quiz_q_visuals:
+                    question_visual = st.session_state.quiz_q_visuals[cache_key]
+                else:
+                    from visuals.wikimedia_fetcher import fetch_wikimedia_image
+                    img_result = fetch_wikimedia_image(hint)
+                    if img_result:
+                        question_visual = {
+                            "type": "educational_image",
+                            "content": img_result,
+                            "label": "🖼️ Visual for this question"
+                        }
+                    st.session_state.quiz_q_visuals[cache_key] = question_visual
+            
+            # Use question-specific visual if available, otherwise fall back to quiz-level visual
+            active_visual = question_visual if question_visual else st.session_state.visual
+            
+            if active_visual and active_visual.get("type") != "none":
                 from visuals.visual_manager import render_visual
-                render_visual(visual)
+                render_visual(active_visual)
             else:
                 st.markdown("""
                 <div class="visual-placeholder" style="padding:2rem;">
@@ -242,7 +268,7 @@ elif not quiz_active and quiz_data:
             st.session_state.update({
                 "quiz_active": False, "quiz_data": None, "q_idx": 0,
                 "selected": None, "score": 0, "history": [],
-                "fb_audio": None, "fb_play": False,
+                "fb_audio": None, "fb_play": False, "quiz_q_visuals": {},
             })
             st.switch_page("pages/pg_home.py")
     with c2:
@@ -251,7 +277,7 @@ elif not quiz_active and quiz_data:
             st.session_state.update({
                 "q_idx": 0, "selected": None, "score": 0,
                 "history": [], "fb_audio": None, "fb_play": False,
-                "quiz_active": True,
+                "quiz_active": True, "quiz_q_visuals": {},
             })
             if qs:
                 with st.spinner("Generating voice..."):

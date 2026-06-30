@@ -109,6 +109,17 @@ QUIZ_SCHEMA = """### SCHEMA:
   "tags": ["tag1", "tag2"],
   "quiz_title": "Quiz Title",
   "intro_text": "Friendly introduction.",
+  "visual": {
+    "visual_type": "image|flowchart|mindmap|classification_tree|cycle|infographic|comparison|table|network",
+    "title": "Title of the visual for this quiz topic",
+    "intro": "Short intro for the visual (if applicable)",
+    "query": "Descriptive English query for image search (if image type)",
+    "steps": [{"step_num": 1, "title": "Step 1", "desc": "Desc"}],
+    "cards": [{"title": "Card 1", "desc": "Desc"}],
+    "headers": ["Col 1", "Col 2"],
+    "rows": [["R1C1", "R1C2"]],
+    "mermaid_code": "flowchart TD; A-->B;"
+  },
   "questions": [
     {
       "question_number": 1,
@@ -121,7 +132,8 @@ QUIZ_SCHEMA = """### SCHEMA:
         "D": "Option D"
       },
       "correct_option": "A",
-      "explanation": "Friendly explanation of why this option is correct."
+      "explanation": "Friendly explanation of why this option is correct.",
+      "visual_hint": "A short 2-5 word English phrase describing a relevant image for this question (e.g. 'mitochondria cell diagram', 'water cycle evaporation')"
     }
   ]
 }"""
@@ -177,7 +189,7 @@ def build_system_prompt(text_language: str, audio_language: str, class_level: in
             audio_language_rules=audio_lang_rules
         )
         if intent == "quiz":
-            schema_injection = base_schema.replace('"explanation": "Friendly explanation of why this option is correct."', '"explanation": "Friendly explanation of why this option is correct.",\n      ' + AUDIO_FIELD_SCHEMA_QUIZ_QUESTION.format(audio_language=audio_language.upper()))
+            schema_injection = base_schema.replace('"visual_hint":', AUDIO_FIELD_SCHEMA_QUIZ_QUESTION.format(audio_language=audio_language.upper()) + ',\n      "visual_hint":')
         else:
             schema_injection = base_schema.replace('"visual": {', AUDIO_FIELD_SCHEMA_EXPLANATION.format(audio_language=audio_language.upper()) + ',\n  "visual": {')
     else:
